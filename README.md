@@ -57,6 +57,21 @@ Use `--release` when checking the metronome; debug builds are slower.
 - Custom tuning: make one, save, see the Tuner aim at it, edit it, delete it
 - Switch apps mid-click and come back
 
+## TestFlight (install on your iPhone without a cable)
+
+Every push to `main` or `app-scaffold` builds the app on GitHub, signs it and uploads it to TestFlight (`.github/workflows/testflight.yml`). One-time setup:
+
+1. **Register the app.** In [App Store Connect](https://appstoreconnect.apple.com) choose **Apps ▸ + ▸ New App**: platform iOS, name *CD Tuner* (or any free name), language English, bundle ID **com.castledangermusic.cdtuner** (if it isn't in the list, register it first at developer.apple.com ▸ Identifiers ▸ + ▸ App IDs), SKU `cdtuner`.
+2. **Create an API key.** App Store Connect ▸ **Users and Access ▸ Integrations ▸ App Store Connect API ▸ Team Keys ▸ +**. Access: **Admin** (needed so GitHub can create the signing certificate for you). Download the `.p8` file (only downloadable once) and note the **Key ID** and the **Issuer ID** shown above the list.
+3. **Find your Team ID** at developer.apple.com ▸ Account ▸ Membership details.
+4. **Add four secrets** in GitHub: repo ▸ **Settings ▸ Secrets and variables ▸ Actions ▸ New repository secret**:
+   - `APPLE_TEAM_ID`: the Team ID
+   - `ASC_KEY_ID`: the Key ID
+   - `ASC_ISSUER_ID`: the Issuer ID
+   - `ASC_KEY_P8`: open the `.p8` file in TextEdit and paste everything, including the BEGIN/END lines
+5. **Run it.** GitHub ▸ **Actions ▸ TestFlight ▸ Run workflow** (branch `app-scaffold`). About 10 minutes later the build appears in App Store Connect ▸ TestFlight.
+6. **Add yourself as a tester.** App Store Connect ▸ your app ▸ **TestFlight ▸ Internal Testing ▸ +**, create a group, add your Apple ID. Install Apple's **TestFlight** app on your iPhone and accept the invite. New builds then arrive automatically.
+
 ## Builds
 
 GitHub Actions (`.github/workflows/build.yml`) builds an Android APK you can download from each run, and checks that the iOS app compiles. Signed iOS builds for TestFlight need your Apple signing certificate and profile added as repository secrets; that step comes later.

@@ -12,6 +12,9 @@ flutter create \
   --platforms ios,android \
   .
 
+# Bundle ID used in App Store Connect / TestFlight.
+perl -pi -e 's/PRODUCT_BUNDLE_IDENTIFIER = com\.castledangermusic\.cdTunerApp/PRODUCT_BUNDLE_IDENTIFIER = com.castledangermusic.cdtuner/g' ios/Runner.xcodeproj/project.pbxproj
+
 PLIST=ios/Runner/Info.plist
 PB=/usr/libexec/PlistBuddy
 # Microphone prompt text (required, or iOS closes the app when the tuner listens).
@@ -23,6 +26,23 @@ $PB -c "Add :UIBackgroundModes array" "$PLIST"
 $PB -c "Add :UIBackgroundModes:0 string audio" "$PLIST"
 # App name under the icon.
 $PB -c "Set :CFBundleDisplayName 'CD Tuner'" "$PLIST" 2>/dev/null || true
+
+# No custom encryption, so TestFlight doesn't ask about export compliance each build.
+$PB -c "Delete :ITSAppUsesNonExemptEncryption" "$PLIST" 2>/dev/null || true
+$PB -c "Add :ITSAppUsesNonExemptEncryption bool false" "$PLIST"
+
+# App icon: the Castle Danger crest (single 1024 px image; Xcode makes the rest).
+ICONS=ios/Runner/Assets.xcassets/AppIcon.appiconset
+rm -f "$ICONS"/*.png
+cp tool/ios/icon-1024.png "$ICONS/icon-1024.png"
+cat > "$ICONS/Contents.json" <<'JSON'
+{
+  "images" : [
+    { "filename" : "icon-1024.png", "idiom" : "universal", "platform" : "ios", "size" : "1024x1024" }
+  ],
+  "info" : { "author" : "xcode", "version" : 1 }
+}
+JSON
 
 # Portrait only (the screens are laid out for a phone held upright).
 $PB -c "Delete :UISupportedInterfaceOrientations" "$PLIST" 2>/dev/null || true
