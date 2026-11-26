@@ -1,0 +1,21 @@
+name: cdmc_audio
+description: Native audio engine for the Castle Danger tuner and metronome (sample-accurate clicks that keep running on the lock screen, pitch detection, reference tones).
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+  flutter: '>=3.22.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.castledangermusic.cdmc_audio
+        pluginClass: CdmcAudioPlugin
+      ios:
+        pluginClass: CdmcAudioPlugin
