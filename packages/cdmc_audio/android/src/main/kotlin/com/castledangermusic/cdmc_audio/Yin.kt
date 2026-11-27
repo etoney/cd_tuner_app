@@ -43,9 +43,9 @@ class PitchTracker(inputRate: Int) {
         sinceLast++
     }
 
-    /** True about ten times a second once the window is full. */
+    /** True about twenty times a second once the window is full. */
     fun due(): Boolean {
-        if (filled < ring.size || sinceLast < rate / 10) return false
+        if (filled < ring.size || sinceLast < rate / 20) return false
         sinceLast = 0
         return true
     }

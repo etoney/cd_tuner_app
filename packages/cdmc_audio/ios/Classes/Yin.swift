@@ -42,7 +42,7 @@ final class PitchTracker {
             pos = (pos + 1) % ring.count
             if filled < ring.count { filled += 1 }
             sinceLast += 1
-            if filled == ring.count && sinceLast >= Int(rate / 10) {
+            if filled == ring.count && sinceLast >= Int(rate / 20) {
                 sinceLast = 0
                 let window = Array(ring[pos...] + ring[..<pos])
                 let hz = Yin.track(window, sampleRate: rate, locked: locked)

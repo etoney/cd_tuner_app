@@ -40,10 +40,12 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
   bool skullGlow = false;
   Timer? _glowTimer;
   DateTime? _inTuneSince;
+  /// A reading far from the current note, waiting for a second to confirm it.
+  double? _cand;
   int? _confirmed;
 
   /// How long a string must sit in tune before it counts.
-  static const _confirmAfter = Duration(milliseconds: 600);
+  static const _confirmAfter = Duration(milliseconds: 450);
 
   /// How long the last reading stays on screen after the string fades out.
   static const _hold = Duration(milliseconds: 2500);
@@ -165,17 +167,30 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
       return;
     }
     _holdTimer?.cancel();
-    // A big jump means a different string was plucked: start fresh so the
-    // old string's readings don't drag the median.
+    double centsBetween(double a, double b) => (1200 * math.log(a / b) / math.ln2).abs();
+    var newNote = _hist.isEmpty;
     if (_hist.isNotEmpty) {
-      final last = _hist.last;
-      if ((1200 * math.log(hz / last) / math.ln2).abs() > 80) {
-        _hist.clear();
-        _resetConfirm();
+      final cur = ([..._hist]..sort())[_hist.length ~/ 2];
+      if (centsBetween(hz, cur) > 70) {
+        // Far from the note we're showing. One such reading is usually a
+        // glitch (pluck noise, an octave slip): ignore it. Two in a row
+        // that agree mean a different string was plucked: switch to it.
+        final c0 = _cand;
+        if (c0 != null && centsBetween(hz, c0) < 40) {
+          _hist
+            ..clear()
+            ..add(c0);
+          _resetConfirm();
+          newNote = true;
+        } else {
+          _cand = hz;
+          return;
+        }
       }
     }
+    _cand = null;
     _hist.add(hz);
-    if (_hist.length > 5) _hist.removeAt(0);
+    if (_hist.length > 3) _hist.removeAt(0);
     final sorted = [..._hist]..sort();
     final med = sorted[sorted.length ~/ 2];
     final t = rig.current;
@@ -190,7 +205,9 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
         }
       }
     }
-    final c = 1200 * math.log(med / t.hz(idx, rig.a4)) / math.ln2;
+    final raw = 1200 * math.log(med / t.hz(idx, rig.a4)) / math.ln2;
+    // Glide toward each new reading so the needle moves smoothly.
+    final c = (newNote || idx != activeString || heard == null) ? raw : cents + (raw - cents) * 0.5;
     setState(() {
       if (idx != activeString) {
         activeString = idx;
@@ -203,6 +220,7 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
   }
 
   void _resetConfirm() {
+    _cand = null;
     _inTuneSince = null;
     _confirmed = null;
   }
@@ -213,7 +231,8 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
   void _checkInTune(int idx, double c) {
     if (_confirmed != null && _confirmed != idx) _resetConfirm();
     if (c.abs() > 5) {
-      _inTuneSince = null;
+      // A brief wobble just outside the green doesn't restart the count.
+      if (c.abs() > 8) _inTuneSince = null;
       // Clearly out again (and a settled reading): no longer counts as tuned.
       if (c.abs() > 12 && _hist.length >= 3) tuned.remove(idx);
       if (_confirmed == idx && c.abs() > 12) _confirmed = null;
@@ -225,12 +244,19 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
     if (now.difference(_inTuneSince!) < _confirmAfter) return;
 
     _confirmed = idx;
-    tuned.add(idx);
+    final first = tuned.add(idx);
     skullGlow = true;
-    HapticFeedback.lightImpact();
+    if (first) HapticFeedback.lightImpact();
     _glowTimer?.cancel();
     _glowTimer = Timer(const Duration(milliseconds: 2200), () {
-      if (mounted) setState(() => skullGlow = false);
+      if (!mounted) return;
+      setState(() {
+        skullGlow = false;
+        // Play the string again (or let it keep ringing in tune) and the
+        // skull lights up again.
+        _confirmed = null;
+        _inTuneSince = null;
+      });
     });
     // Ready for the next string: forget this note and its readings.
     CdmcAudio.resetPitchLock();
@@ -320,7 +346,7 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
           Positioned.fill(
             child: TweenAnimationBuilder<double>(
               tween: Tween(end: hasPitch ? cents.clamp(-50, 50).toDouble() : -50),
-              duration: Duration(milliseconds: hasPitch ? 120 : 400),
+              duration: Duration(milliseconds: hasPitch ? 80 : 400),
               builder: (_, v, __) => Opacity(
                 opacity: hasPitch ? 1 : 0.35,
                 child: CustomPaint(painter: _NeedlePainter(v, color)),
