@@ -58,7 +58,11 @@ jobs:
         if: steps.ready.outputs.ok == 'true'
         run: flutter build ios --release --no-codesign --build-number=${{ github.run_number }}
 
-      - name: Archive and sign
+      # Archive unsigned. Signing a development build here made a brand-new
+      # Apple Development certificate on every run (each runner is a fresh
+      # Mac) until Apple's certificate limit was hit. The export step below
+      # signs for the App Store with Apple's cloud-managed certificate instead.
+      - name: Archive (unsigned)
         if: steps.ready.outputs.ok == 'true'
         run: |
           xcodebuild archive \
@@ -67,14 +71,12 @@ jobs:
             -configuration Release \
             -destination 'generic/platform=iOS' \
             -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
-            -allowProvisioningUpdates \
-            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" \
-            -authenticationKeyID "$ASC_KEY_ID" \
-            -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
             DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
-            CODE_SIGN_STYLE=Automatic
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
 
-      - name: Upload to TestFlight
+      - name: Sign and upload to TestFlight
         if: steps.ready.outputs.ok == 'true'
         run: |
           sed "s/TEAM_ID/$APPLE_TEAM_ID/" tool/ios/ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
