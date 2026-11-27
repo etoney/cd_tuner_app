@@ -389,13 +389,17 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
         top: 388,
         width: 172,
         height: 185,
-        child: _Headstock(
+        child: _SpinSwitcher(
+          spinKey: '${rig.key}|$n',
+          child: _Headstock(
+          key: ValueKey('${rig.key}|$n'),
           tuning: t,
           active: activeString,
           color: hasPitch ? color : C.gold,
           tuned: Set.of(tuned),
           glow: skullGlow,
           onPick: _pick,
+        ),
         ),
       ),
 
@@ -590,6 +594,7 @@ class _NeedlePainter extends CustomPainter {
 /// Drawn in the headstock art's pixel space (520 x 560) at scale [_s].
 class _Headstock extends StatelessWidget {
   const _Headstock({
+    super.key,
     required this.tuning,
     required this.active,
     required this.color,
@@ -762,4 +767,44 @@ class _StringsPainter extends CustomPainter {
       old.n != n ||
       old.posts != posts ||
       !setEquals(old.tuned, tuned);
+}
+
+/// Spins the headstock around its vertical axis when the string count or
+/// instrument changes; the new pegs appear on the way back round.
+class _SpinSwitcher extends StatelessWidget {
+  const _SpinSwitcher({required this.spinKey, required this.child});
+  final String spinKey;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 650),
+      switchInCurve: Curves.easeOut,
+      switchOutCurve: Curves.easeIn,
+      layoutBuilder: (current, previous) =>
+          Stack(clipBehavior: Clip.none, children: [...previous, if (current != null) current]),
+      transitionBuilder: (w, anim) {
+        final incoming = w.key == ValueKey(spinKey);
+        return AnimatedBuilder(
+          animation: anim,
+          child: w,
+          builder: (context, child) {
+            final v = anim.value;
+            // Each half of the spin belongs to one side: old out, then new in.
+            if (v < 0.5) return const SizedBox.shrink();
+            final turn = (1 - v) * math.pi; // pi/2 -> 0
+            return Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.identity()
+                ..setEntry(3, 2, 0.0015)
+                ..rotateY(incoming ? -turn : turn),
+              child: child,
+            );
+          },
+        );
+      },
+      child: child,
+    );
+  }
 }
