@@ -71,6 +71,7 @@ class CdmcAudioPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activity
                 }
             }
             "stopTuner" -> { AudioEngine.stopTuner(); result.success(null) }
+            "resetPitchLock" -> { AudioEngine.resetPitchLock(); result.success(null) }
             "keepAwake" -> {
                 val on = call.argument<Boolean>("on") ?: false
                 activity?.window?.let { w ->

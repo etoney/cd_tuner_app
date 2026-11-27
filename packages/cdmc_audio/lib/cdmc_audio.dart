@@ -39,6 +39,9 @@ class CdmcAudio {
 
   static Future<void> stopTuner() => _m.invokeMethod('stopTuner');
 
+  /// Forgets the note the tuner was following so the next string is heard at once.
+  static Future<void> resetPitchLock() => _m.invokeMethod('resetPitchLock');
+
   /// Stops the screen from dimming and locking (used while the tuner listens).
   static Future<void> keepAwake(bool on) => _m.invokeMethod('keepAwake', {'on': on});
 

@@ -266,6 +266,10 @@ final class AudioEngine {
         }
     }
 
+    func resetPitchLock() {
+        detectQueue.async { [weak self] in self?.tracker?.resetLock() }
+    }
+
     func stopTuner() {
         guard tunerOn else { return }
         rec.inputNode.removeTap(onBus: 0)

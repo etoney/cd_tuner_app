@@ -21,6 +21,9 @@ final class PitchTracker {
     private var locked = -1.0
     private var misses = 0
 
+    /// Forget the locked pitch so the next string is picked up at once.
+    func resetLock() { locked = -1; misses = 0 }
+
     init(inputRate: Double) {
         rate = inputRate / Double(decim)
         lp1 = .lowPass(1500, inputRate)
@@ -114,8 +117,9 @@ enum Yin {
         while tau < maxLag && d[tau] >= limit { tau += 1 }
         while tau + 1 < maxLag && d[tau + 1] < d[tau] { tau += 1 }
         let free = refine(d, tau, sampleRate)
-        let nearLock = locked > 0 && abs(1200 * log2(free / locked)) < 300
-        if d[tau] < strong && (locked <= 0 || nearLock) { return free }
+        // A clear reading always wins, so a newly plucked string takes over
+        // even while the previous one is still ringing.
+        if d[tau] < strong { return free }
 
         // 2. Follow the locked pitch within about ±60 cents.
         guard locked > 0 else { return -1 }

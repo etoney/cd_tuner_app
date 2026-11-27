@@ -2,7 +2,9 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:cdmc_audio/cdmc_audio.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../data/tunings.dart';
 import '../ui/style.dart';
@@ -31,6 +33,17 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
   final List<double> _hist = [];
   StreamSubscription<double>? _pitchSub;
   Timer? _holdTimer;
+
+  /// Strings confirmed in tune since the tuning was chosen.
+  final Set<int> tuned = {};
+  /// True for a moment after a string is confirmed: the skull glows green.
+  bool skullGlow = false;
+  Timer? _glowTimer;
+  DateTime? _inTuneSince;
+  int? _confirmed;
+
+  /// How long a string must sit in tune before it counts.
+  static const _confirmAfter = Duration(milliseconds: 600);
 
   /// How long the last reading stays on screen after the string fades out.
   static const _hold = Duration(milliseconds: 2500);
@@ -77,6 +90,7 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
     rig.removeListener(_onRig);
     _pitchSub?.cancel();
     _holdTimer?.cancel();
+    _glowTimer?.cancel();
     CdmcAudio.stopTuner();
     CdmcAudio.keepAwake(false);
     CdmcAudio.stopTone();
@@ -90,6 +104,8 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
       activeString = 0;
       _hist.clear();
       heard = null;
+      tuned.clear();
+      _resetConfirm();
     }
     activeString = math.min(activeString, rig.current.midis.length - 1);
     if (tone) CdmcAudio.startTone(rig.current.hz(activeString, rig.a4));
@@ -142,12 +158,22 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
           setState(() {
             heard = null;
             _hist.clear();
+            _resetConfirm();
           });
         });
       }
       return;
     }
     _holdTimer?.cancel();
+    // A big jump means a different string was plucked: start fresh so the
+    // old string's readings don't drag the median.
+    if (_hist.isNotEmpty) {
+      final last = _hist.last;
+      if ((1200 * math.log(hz / last) / math.ln2).abs() > 80) {
+        _hist.clear();
+        _resetConfirm();
+      }
+    }
     _hist.add(hz);
     if (_hist.length > 5) _hist.removeAt(0);
     final sorted = [..._hist]..sort();
@@ -172,7 +198,54 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
       }
       heard = med;
       cents = c;
+      _checkInTune(idx, c);
     });
+  }
+
+  void _resetConfirm() {
+    _inTuneSince = null;
+    _confirmed = null;
+  }
+
+  /// Called on every reading (inside setState). Once a string has sat in
+  /// tune for a moment, the skull glows, the string is marked tuned and the
+  /// tuner lets go of it, ready for the next string.
+  void _checkInTune(int idx, double c) {
+    if (_confirmed != null && _confirmed != idx) _resetConfirm();
+    if (c.abs() > 5) {
+      _inTuneSince = null;
+      // Clearly out again (and a settled reading): no longer counts as tuned.
+      if (c.abs() > 12 && _hist.length >= 3) tuned.remove(idx);
+      if (_confirmed == idx && c.abs() > 12) _confirmed = null;
+      return;
+    }
+    if (_confirmed == idx) return;
+    final now = DateTime.now();
+    _inTuneSince ??= now;
+    if (now.difference(_inTuneSince!) < _confirmAfter) return;
+
+    _confirmed = idx;
+    tuned.add(idx);
+    skullGlow = true;
+    HapticFeedback.lightImpact();
+    _glowTimer?.cancel();
+    _glowTimer = Timer(const Duration(milliseconds: 2200), () {
+      if (mounted) setState(() => skullGlow = false);
+    });
+    // Ready for the next string: forget this note and its readings.
+    CdmcAudio.resetPitchLock();
+    _hist.clear();
+    if (!auto) {
+      final n = rig.current.midis.length;
+      for (var k = 1; k < n; k++) {
+        final next = (idx + k) % n;
+        if (!tuned.contains(next)) {
+          activeString = next;
+          if (tone) CdmcAudio.startTone(rig.current.hz(next, rig.a4));
+          break;
+        }
+      }
+    }
   }
 
   void _pick(int i) {
@@ -180,6 +253,7 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
       activeString = i;
       auto = false;
       _hist.clear();
+      _resetConfirm();
     });
     if (tone) CdmcAudio.startTone(rig.current.hz(i, rig.a4));
   }
@@ -200,7 +274,11 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
     final hasPitch = heard != null;
     final status = !hasPitch
         ? (listening ? 'PLAY A STRING' : 'NOT LISTENING')
-        : cents.abs() <= 5
+        : skullGlow && tuned.length == n
+            ? 'ALL STRINGS IN TUNE'
+            : skullGlow
+                ? 'IN TUNE · NEXT STRING'
+                : cents.abs() <= 5
             ? 'IN TUNE'
             : (cents < 0 ? 'FLAT · TUNE UP' : 'SHARP · TUNE DOWN');
 
@@ -315,6 +393,8 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
           tuning: t,
           active: activeString,
           color: hasPitch ? color : C.gold,
+          tuned: Set.of(tuned),
+          glow: skullGlow,
           onPick: _pick,
         ),
       ),
@@ -509,7 +589,16 @@ class _NeedlePainter extends CustomPainter {
 /// Headstock with one peg per string: 3+3, 4+3, 4+4, 2+2, 3+2 and so on.
 /// Drawn in the headstock art's pixel space (520 x 560) at scale [_s].
 class _Headstock extends StatelessWidget {
-  const _Headstock({required this.tuning, required this.active, required this.color, required this.onPick});
+  const _Headstock({
+    required this.tuning,
+    required this.active,
+    required this.color,
+    required this.tuned,
+    required this.glow,
+    required this.onPick,
+  });
+  final Set<int> tuned;
+  final bool glow;
   final Tuning tuning;
   final int active;
   final Color color;
@@ -536,7 +625,38 @@ class _Headstock extends StatelessWidget {
     final spacing = math.min(44.0, (l > 1 ? 226 / (l - 1) : 120) * _s);
     return Stack(clipBehavior: Clip.none, children: [
       Positioned(left: 0, top: 0, width: 520 * _s, height: 492 * _s, child: Image.asset(Img.headBody, fit: BoxFit.fill)),
-      Positioned.fill(child: CustomPaint(painter: _StringsPainter(posts, n, active, color))),
+      // The skull lights up green when a string is confirmed in tune.
+      Positioned(
+        left: 190 * _s,
+        top: 110 * _s,
+        width: 130 * _s,
+        height: 180 * _s,
+        child: IgnorePointer(
+          child: AnimatedOpacity(
+            opacity: glow ? 1 : 0,
+            duration: Duration(milliseconds: glow ? 150 : 700),
+            child: Stack(children: [
+              Positioned(
+                left: 15 * _s,
+                top: 15 * _s,
+                width: 100 * _s,
+                height: 144 * _s,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.all(Radius.elliptical(50 * _s, 72 * _s)),
+                    boxShadow: [
+                      BoxShadow(color: C.inTune.withOpacity(0.85), blurRadius: 16, spreadRadius: 2),
+                      BoxShadow(color: C.inTune.withOpacity(0.45), blurRadius: 30, spreadRadius: 6),
+                    ],
+                  ),
+                ),
+              ),
+              Positioned.fill(child: Image.asset(Img.skullGlow, fit: BoxFit.fill)),
+            ]),
+          ),
+        ),
+      ),
+      Positioned.fill(child: CustomPaint(painter: _StringsPainter(posts, n, active, color, tuned))),
       for (final p in posts) ...[
         Positioned(
           left: (p.left ? 8 : 420) * _s,
@@ -593,7 +713,8 @@ class _Post {
 }
 
 class _StringsPainter extends CustomPainter {
-  _StringsPainter(this.posts, this.n, this.active, this.color);
+  _StringsPainter(this.posts, this.n, this.active, this.color, this.tuned);
+  final Set<int> tuned;
   final List<_Post> posts;
   final int n, active;
   final Color color;
@@ -626,7 +747,7 @@ class _StringsPainter extends CustomPainter {
           ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 5));
       }
       canvas.drawPath(path, Paint()
-        ..color = on ? color : const Color(0xFFD8CCB4)
+        ..color = on ? color : (tuned.contains(p.i) ? C.inTune : const Color(0xFFD8CCB4))
         ..style = PaintingStyle.stroke
         ..strokeWidth = 7 - p.i * (4.5 / math.max(1, n - 1))
         ..strokeCap = StrokeCap.round);
@@ -636,5 +757,9 @@ class _StringsPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _StringsPainter old) =>
-      old.active != active || old.color != color || old.n != n || old.posts != posts;
+      old.active != active ||
+      old.color != color ||
+      old.n != n ||
+      old.posts != posts ||
+      !setEquals(old.tuned, tuned);
 }

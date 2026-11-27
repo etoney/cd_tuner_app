@@ -221,6 +221,7 @@ object AudioEngine {
                 for (i in 0 until n) {
                     tracker.push(shorts[i] / 32768f)
                     if (tracker.due()) {
+                        if (resetLockFlag) { resetLockFlag = false; tracker.resetLock() }
                         val hz = tracker.detect()
                         main.post { onPitch?.invoke(hz) }
                     }
@@ -230,6 +231,9 @@ object AudioEngine {
             rec.release()
         }, "cdmc-audio-in").apply { start() }
     }
+
+    @Volatile private var resetLockFlag = false
+    fun resetPitchLock() { resetLockFlag = true }
 
     fun stopTuner() { inRunning = false }
 }

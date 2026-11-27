@@ -40,6 +40,7 @@ class Img {
   static const pauseCenter = '${_p}pausecenter.png';
   static const gauge = '${_p}gauge.png';
   static const headBody = '${_p}headbody.png';
+  static const skullGlow = '${_p}skullglow.png';
   static const peg = '${_p}peg.png';
   static const post = '${_p}post.png';
 }

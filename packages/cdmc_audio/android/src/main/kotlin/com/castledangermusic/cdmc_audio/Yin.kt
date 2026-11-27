@@ -50,6 +50,9 @@ class PitchTracker(inputRate: Int) {
         return true
     }
 
+    /** Forget the locked pitch so the next string is picked up at once. */
+    fun resetLock() { locked = -1.0; misses = 0 }
+
     fun detect(): Double {
         // Unroll the circular buffer, oldest sample first.
         val tail = ring.size - pos
@@ -139,8 +142,9 @@ object Yin {
         while (tau < maxLag && d[tau] >= limit) tau++
         while (tau + 1 < maxLag && d[tau + 1] < d[tau]) tau++
         val free = refine(d, tau, sampleRate)
-        val nearLock = locked > 0 && kotlin.math.abs(1200 * kotlin.math.ln(free / locked) / kotlin.math.ln(2.0)) < 300
-        if (d[tau] < STRONG && (locked <= 0 || nearLock)) return free
+        // A clear reading always wins, so a newly plucked string takes over
+        // even while the previous one is still ringing.
+        if (d[tau] < STRONG) return free
 
         // 2. Follow the locked pitch within about ±60 cents.
         if (locked <= 0) return -1.0

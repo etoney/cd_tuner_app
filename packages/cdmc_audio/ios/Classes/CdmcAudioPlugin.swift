@@ -27,6 +27,8 @@ public class CdmcAudioPlugin: NSObject, FlutterPlugin {
             }
         case "stopTuner":
             engine.stopTuner(); result(nil)
+        case "resetPitchLock":
+            engine.resetPitchLock(); result(nil)
         case "keepAwake":
             UIApplication.shared.isIdleTimerDisabled = (args["on"] as? Bool) ?? false
             result(nil)
