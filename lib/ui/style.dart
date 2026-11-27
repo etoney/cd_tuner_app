@@ -402,11 +402,13 @@ class PageHeader extends StatelessWidget {
     return Stack(children: [
       // Castle Danger Music Company crest, centred; the page name is read out
       // for screen readers only.
+      // Sits below the Dynamic Island. The image carries a dark halo, so it is
+      // a little larger than the crest itself (crest is 104 wide, top at 58).
       Positioned(
-        left: (390 - 116) / 2,
-        top: 44,
-        width: 116,
-        height: 121,
+        left: 195 - 57.6,
+        top: 52.4,
+        width: 115.2,
+        height: 119.2,
         child: Semantics(
           header: true,
           label: semantic,
