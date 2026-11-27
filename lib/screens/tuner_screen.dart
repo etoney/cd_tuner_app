@@ -33,7 +33,7 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
   Timer? _holdTimer;
 
   /// How long the last reading stays on screen after the string fades out.
-  static const _hold = Duration(milliseconds: 1800);
+  static const _hold = Duration(milliseconds: 2500);
   String _lastKey = '';
 
   Rig get rig => widget.rig;

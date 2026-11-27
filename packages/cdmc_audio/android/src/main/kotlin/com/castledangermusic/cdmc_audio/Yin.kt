@@ -21,11 +21,16 @@ class PitchTracker(inputRate: Int) {
     private val lp2 = Biquad.lowPass(1500.0, inputRate.toDouble())
     private val hp = Biquad.highPass(25.0, inputRate.toDouble())
     private var phase = 0
-    private val ring = FloatArray(2048)
-    private val window = FloatArray(2048)
+    // ~340 ms window: long enough to keep a fading string readable.
+    private val ring = FloatArray(4096)
+    private val window = FloatArray(4096)
     private var pos = 0
     private var filled = 0
     private var sinceLast = 0
+
+    /** The pitch we're locked onto, so a fading note stays tracked. */
+    private var locked = -1.0
+    private var misses = 0
 
     /** Feeds one raw microphone sample. */
     fun push(x: Float) {
@@ -50,7 +55,9 @@ class PitchTracker(inputRate: Int) {
         val tail = ring.size - pos
         System.arraycopy(ring, pos, window, 0, tail)
         System.arraycopy(ring, 0, window, tail, pos)
-        return Yin.detect(window, rate)
+        val hz = Yin.track(window, rate, locked)
+        if (hz > 0) { locked = hz; misses = 0 } else if (++misses >= 5) locked = -1.0
+        return hz
     }
 }
 
@@ -93,11 +100,16 @@ class Biquad private constructor(
 object Yin {
     private const val THRESHOLD = 0.15f
     private const val RELATIVE = 1.6f
-    private const val REJECT = 0.5f
-    private const val MIN_RMS = 0.0008f
+    private const val STRONG = 0.35f      // clear pitch: accept anywhere
+    private const val WEAK = 0.6f         // fading note: accept only near the locked pitch
+    private const val MIN_RMS = 0.00015f  // essentially silence
 
-    /** Returns the fundamental in Hz, or -1 when the signal is too quiet or unpitched. */
-    fun detect(b: FloatArray, sampleRate: Int): Double {
+    /**
+     * Returns the fundamental in Hz, or -1 when there's no usable pitch.
+     * [locked] is the last good reading (or -1): a fading note that is too
+     * weak to find from scratch is still followed if it stays near it.
+     */
+    fun track(b: FloatArray, sampleRate: Int, locked: Double): Double {
         var sum = 0.0
         for (x in b) sum += x * x
         if (sqrt(sum / b.size) < MIN_RMS) return -1.0
@@ -118,18 +130,29 @@ object Yin {
             run += s
             d[t] = if (run > 0) (s * t / run).toFloat() else 1f
         }
+
+        // 1. Search from scratch: first dip that is nearly as good as the best.
         var gmin = Float.MAX_VALUE
         for (t in minLag until maxLag) if (d[t] < gmin) gmin = d[t]
-        if (gmin > REJECT) return -1.0
-        // Take the first dip that is nearly as good as the best one; this
-        // avoids reading an octave low when the room is noisy.
         val limit = maxOf(THRESHOLD, gmin * RELATIVE)
-        var tau = -1
-        for (t in minLag until maxLag) {
-            if (d[t] < limit) { tau = t; break }
-        }
-        if (tau < 0) return -1.0
+        var tau = minLag
+        while (tau < maxLag && d[tau] >= limit) tau++
         while (tau + 1 < maxLag && d[tau + 1] < d[tau]) tau++
+        val free = refine(d, tau, sampleRate)
+        val nearLock = locked > 0 && kotlin.math.abs(1200 * kotlin.math.ln(free / locked) / kotlin.math.ln(2.0)) < 300
+        if (d[tau] < STRONG && (locked <= 0 || nearLock)) return free
+
+        // 2. Follow the locked pitch within about ±60 cents.
+        if (locked <= 0) return -1.0
+        val p = sampleRate / locked
+        val lo = maxOf(2, (p / 1.035).toInt())
+        val hi = minOf(maxLag - 1, (p * 1.035).toInt() + 1)
+        var best = lo
+        for (t in lo..hi) if (d[t] < d[best]) best = t
+        return if (d[best] < WEAK) refine(d, best, sampleRate) else -1.0
+    }
+
+    private fun refine(d: FloatArray, tau: Int, sampleRate: Int): Double {
         val a = d[tau - 1]
         val c = d[tau + 1]
         val den = a + c - 2 * d[tau]

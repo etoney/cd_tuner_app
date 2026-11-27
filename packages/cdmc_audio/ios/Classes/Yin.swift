@@ -12,10 +12,14 @@ final class PitchTracker {
     let rate: Double
     private var lp1: Biquad, lp2: Biquad, hp: Biquad
     private var phase = 0
-    private var ring = [Float](repeating: 0, count: 2048)
+    // ~340 ms window: long enough to keep a fading string readable.
+    private var ring = [Float](repeating: 0, count: 4096)
     private var pos = 0
     private var filled = 0
     private var sinceLast = 0
+    /// The pitch we're locked onto, so a fading note stays tracked.
+    private var locked = -1.0
+    private var misses = 0
 
     init(inputRate: Double) {
         rate = inputRate / Double(decim)
@@ -38,7 +42,9 @@ final class PitchTracker {
             if filled == ring.count && sinceLast >= Int(rate / 10) {
                 sinceLast = 0
                 let window = Array(ring[pos...] + ring[..<pos])
-                onReading(Yin.detect(window, sampleRate: rate))
+                let hz = Yin.track(window, sampleRate: rate, locked: locked)
+                if hz > 0 { locked = hz; misses = 0 } else { misses += 1; if misses >= 5 { locked = -1 } }
+                onReading(hz)
             }
         }
     }
@@ -70,11 +76,14 @@ struct Biquad {
 enum Yin {
     static let threshold: Float = 0.15
     static let relative: Float = 1.6
-    static let reject: Float = 0.5
-    static let minRms: Float = 0.0008
+    static let strong: Float = 0.35      // clear pitch: accept anywhere
+    static let weak: Float = 0.6         // fading note: accept only near the locked pitch
+    static let minRms: Float = 0.00015   // essentially silence
 
-    /// Returns the fundamental in Hz, or -1 when the signal is too quiet or unpitched.
-    static func detect(_ b: [Float], sampleRate: Double) -> Double {
+    /// Returns the fundamental in Hz, or -1 when there's no usable pitch.
+    /// [locked] is the last good reading (or -1): a fading note that is too
+    /// weak to find from scratch is still followed if it stays near it.
+    static func track(_ b: [Float], sampleRate: Double, locked: Double) -> Double {
         var sum: Float = 0
         for x in b { sum += x * x }
         if (sum / Float(b.count)).squareRoot() < minRms { return -1 }
@@ -96,16 +105,28 @@ enum Yin {
                 d[t] = run > 0 ? Float(s * Double(t) / run) : 1
             }
         }
+
+        // 1. Search from scratch: first dip that is nearly as good as the best.
         var gmin = Float.greatestFiniteMagnitude
         for t in minLag..<maxLag where d[t] < gmin { gmin = d[t] }
-        if gmin > reject { return -1 }
-        // Take the first dip that is nearly as good as the best one; this
-        // avoids reading an octave low when the room is noisy.
         let limit = max(threshold, gmin * relative)
-        var tau = -1
-        for t in minLag..<maxLag where d[t] < limit { tau = t; break }
-        if tau < 0 { return -1 }
+        var tau = minLag
+        while tau < maxLag && d[tau] >= limit { tau += 1 }
         while tau + 1 < maxLag && d[tau + 1] < d[tau] { tau += 1 }
+        let free = refine(d, tau, sampleRate)
+        let nearLock = locked > 0 && abs(1200 * log2(free / locked)) < 300
+        if d[tau] < strong && (locked <= 0 || nearLock) { return free }
+
+        // 2. Follow the locked pitch within about ±60 cents.
+        guard locked > 0 else { return -1 }
+        let p = sampleRate / locked
+        let lo = max(2, Int(p / 1.035)), hi = min(maxLag - 1, Int(p * 1.035) + 1)
+        var best = lo
+        for t in lo...hi where d[t] < d[best] { best = t }
+        return d[best] < weak ? refine(d, best, sampleRate) : -1
+    }
+
+    private static func refine(_ d: [Float], _ tau: Int, _ sampleRate: Double) -> Double {
         let a = d[tau - 1], c = d[tau + 1]
         let den = a + c - 2 * d[tau]
         let shift = den != 0 ? (a - c) / (2 * den) : 0
