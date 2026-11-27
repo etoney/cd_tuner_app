@@ -13,7 +13,7 @@ flutter create \
   .
 
 # Bundle ID used in App Store Connect / TestFlight.
-perl -pi -e 's/PRODUCT_BUNDLE_IDENTIFIER = com\.castledangermusic\.cdTunerApp/PRODUCT_BUNDLE_IDENTIFIER = com.castledangermusic.cdtuner/g' ios/Runner.xcodeproj/project.pbxproj
+perl -pi -e 's/PRODUCT_BUNDLE_IDENTIFIER = com\.castledangermusic\.cdTunerApp/PRODUCT_BUNDLE_IDENTIFIER = com.castledangermusic.tempustuner/g' ios/Runner.xcodeproj/project.pbxproj
 
 PLIST=ios/Runner/Info.plist
 PB=/usr/libexec/PlistBuddy
@@ -25,7 +25,7 @@ $PB -c "Delete :UIBackgroundModes" "$PLIST" 2>/dev/null || true
 $PB -c "Add :UIBackgroundModes array" "$PLIST"
 $PB -c "Add :UIBackgroundModes:0 string audio" "$PLIST"
 # App name under the icon.
-$PB -c "Set :CFBundleDisplayName 'CD Tuner'" "$PLIST" 2>/dev/null || true
+$PB -c "Set :CFBundleDisplayName 'Tempus Tuner'" "$PLIST" 2>/dev/null || true
 
 # No custom encryption, so TestFlight doesn't ask about export compliance each build.
 $PB -c "Delete :ITSAppUsesNonExemptEncryption" "$PLIST" 2>/dev/null || true
@@ -50,7 +50,7 @@ $PB -c "Add :UISupportedInterfaceOrientations array" "$PLIST"
 $PB -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationPortrait" "$PLIST"
 
 # Android: app label, and minimum Android 6.0 (the audio engine needs it).
-perl -pi -e 's/android:label="cd_tuner_app"/android:label="CD Tuner"/' android/app/src/main/AndroidManifest.xml
+perl -pi -e 's/android:label="cd_tuner_app"/android:label="Tempus Tuner"/' android/app/src/main/AndroidManifest.xml
 for f in android/app/build.gradle android/app/build.gradle.kts; do
   [ -f "$f" ] && perl -pi -e 's/minSdk(Version)?\s*=?\s*flutter\.minSdkVersion/minSdk = 23/' "$f"
 done

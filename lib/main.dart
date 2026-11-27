@@ -26,7 +26,7 @@ class CdTunerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'CD Tuner',
+      title: 'Tempus Tuner',
       debugShowCheckedModeBanner: false,
       theme: ThemeData.dark(useMaterial3: true).copyWith(scaffoldBackgroundColor: const Color(0xFF0B0807)),
       home: Shell(rig: rig, metronome: metronome),

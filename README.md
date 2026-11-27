@@ -1,6 +1,8 @@
-# CD Tuner
+# Tempus Tuner
 
 A free tuner and metronome for guitar and bass by Castle Danger Music Company, for iOS and Android.
+
+App Store subtitle: *Tuner & Metronome · Castle Danger Music Company*
 
 ## What it does
 
@@ -61,7 +63,7 @@ Use `--release` when checking the metronome; debug builds are slower.
 
 Every push to `main` or `app-scaffold` builds the app on GitHub, signs it and uploads it to TestFlight (`.github/workflows/testflight.yml`). One-time setup:
 
-1. **Register the app.** In [App Store Connect](https://appstoreconnect.apple.com) choose **Apps ▸ + ▸ New App**: platform iOS, name *CD Tuner* (or any free name), language English, bundle ID **com.castledangermusic.cdtuner** (if it isn't in the list, register it first at developer.apple.com ▸ Identifiers ▸ + ▸ App IDs), SKU `cdtuner`.
+1. **Register the app.** In [App Store Connect](https://appstoreconnect.apple.com) choose **Apps ▸ + ▸ New App**: platform iOS, name **Tempus Tuner**, language English, bundle ID **com.castledangermusic.tempustuner** (if it isn't in the list, register it first at developer.apple.com ▸ Identifiers ▸ + ▸ App IDs), SKU `tempustuner`.
 2. **Create an API key.** App Store Connect ▸ **Users and Access ▸ Integrations ▸ App Store Connect API ▸ Team Keys ▸ +**. Access: **Admin** (needed so GitHub can create the signing certificate for you). Download the `.p8` file (only downloadable once) and note the **Key ID** and the **Issuer ID** shown above the list.
 3. **Find your Team ID** at developer.apple.com ▸ Account ▸ Membership details.
 4. **Add four secrets** in GitHub: repo ▸ **Settings ▸ Secrets and variables ▸ Actions ▸ New repository secret**:
