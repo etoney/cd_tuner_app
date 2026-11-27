@@ -74,6 +74,10 @@ Every push to `main` or `app-scaffold` builds the app on GitHub, signs it and up
 5. **Run it.** GitHub ▸ **Actions ▸ TestFlight ▸ Run workflow** (branch `app-scaffold`). About 10 minutes later the build appears in App Store Connect ▸ TestFlight.
 6. **Add yourself as a tester.** App Store Connect ▸ your app ▸ **TestFlight ▸ Internal Testing ▸ +**, create a group, add your Apple ID. Install Apple's **TestFlight** app on your iPhone and accept the invite. New builds then arrive automatically.
 
+## App icons
+
+The Tempus Tuner icon art lives in `tool/`: `tool/ios/icon-1024.png` (iOS, square; iOS rounds the corners), `tool/android/res/` (Android adaptive icon layers and legacy sizes) and `tool/android/play-store-icon-512.png` (Play Store listing). `tool/setup_platforms.sh` copies them into the generated projects.
+
 ## Builds
 
 GitHub Actions (`.github/workflows/build.yml`) builds an Android APK you can download from each run, and checks that the iOS app compiles. Signed iOS builds for TestFlight need your Apple signing certificate and profile added as repository secrets; that step comes later.

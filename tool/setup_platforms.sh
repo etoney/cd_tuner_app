@@ -49,6 +49,9 @@ $PB -c "Delete :UISupportedInterfaceOrientations" "$PLIST" 2>/dev/null || true
 $PB -c "Add :UISupportedInterfaceOrientations array" "$PLIST"
 $PB -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationPortrait" "$PLIST"
 
+# Android app icons (adaptive foreground/background + legacy sizes).
+cp -R tool/android/res/. android/app/src/main/res/
+
 # Android: app label, and minimum Android 6.0 (the audio engine needs it).
 perl -pi -e 's/android:label="cd_tuner_app"/android:label="Tempus Tuner"/' android/app/src/main/AndroidManifest.xml
 for f in android/app/build.gradle android/app/build.gradle.kts; do

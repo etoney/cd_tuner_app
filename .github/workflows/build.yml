@@ -21,6 +21,8 @@ jobs:
           cache: true
       # Generates the Android folder if it isn't committed yet (skips existing files).
       - run: flutter create --org com.castledangermusic --project-name cd_tuner_app --platforms android .
+      - name: App icons
+        run: cp -R tool/android/res/. android/app/src/main/res/
       - name: Minimum Android 6.0 for the audio engine
         run: |
           for f in android/app/build.gradle android/app/build.gradle.kts; do
