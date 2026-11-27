@@ -21,8 +21,13 @@ String notesLine(List<int> midis) => midis.map((m) => _flatNames[m % 12]).join('
 /// A tuning: notes from the lowest string to the highest, plus optional
 /// fine-tune offsets in cents for each string.
 class Tuning {
-  const Tuning(this.name, this.notes, this.midis, [this.cents = const []]);
+  const Tuning(this.name, this.notes, this.midis, [this.cents = const [], this.baritone = false]);
+  const Tuning.baritone(this.name, this.notes, this.midis)
+      : cents = const [],
+        baritone = true;
   final String name;
+  /// Baritone guitar tunings are listed in their own group.
+  final bool baritone;
   final String notes;
   final List<int> midis;
   final List<int> cents;
@@ -80,18 +85,30 @@ const Map<String, List<Tuning>> presets = {
     Tuning('Drop B', 'B F# B E G# C#', [35, 42, 47, 52, 56, 61]),
     Tuning('Open G', 'D G D G B D', [38, 43, 50, 55, 59, 62]),
     Tuning('DADGAD', 'D A D G A D', [38, 45, 50, 55, 57, 62]),
+    // Baritone (longer scale, tuned a 4th to a 5th lower).
+    Tuning.baritone('B Standard', 'B E A D F# B', [35, 40, 45, 50, 54, 59]),
+    Tuning.baritone('A Standard', 'A D G C E A', [33, 38, 43, 48, 52, 57]),
+    Tuning.baritone('C Standard', 'C F Bb Eb G C', [36, 41, 46, 51, 55, 60]),
+    Tuning.baritone('Drop A', 'A E A D F# B', [33, 40, 45, 50, 54, 59]),
+    Tuning.baritone('Drop G', 'G D G C E A', [31, 38, 43, 48, 52, 57]),
   ],
   'guitar7': [
     Tuning('B Standard', 'B E A D G B E', [35, 40, 45, 50, 55, 59, 64]),
     Tuning('Drop A', 'A E A D G B E', [33, 40, 45, 50, 55, 59, 64]),
     Tuning('A Standard', 'A D G C F A D', [33, 38, 43, 48, 53, 57, 62]),
     Tuning('Drop G', 'G D G C F A D', [31, 38, 43, 48, 53, 57, 62]),
+    Tuning.baritone('F# Standard', 'F# B E A D F# B', [30, 35, 40, 45, 50, 54, 59]),
+    Tuning.baritone('E Standard', 'E A D G C E A', [28, 33, 38, 43, 48, 52, 57]),
+    Tuning.baritone('Drop E', 'E B E A D F# B', [28, 35, 40, 45, 50, 54, 59]),
   ],
   'guitar8': [
     Tuning('F# Standard', 'F# B E A D G B E', [30, 35, 40, 45, 50, 55, 59, 64]),
     Tuning('Drop E', 'E B E A D G B E', [28, 35, 40, 45, 50, 55, 59, 64]),
     Tuning('E Standard', 'E A D G C F A D', [28, 33, 38, 43, 48, 53, 57, 62]),
     Tuning('Drop D#', 'D# A# D# G# C# F# A# D#', [27, 34, 39, 44, 49, 54, 58, 63]),
+    Tuning.baritone('C# Standard', 'C# F# B E A D F# B', [25, 30, 35, 40, 45, 50, 54, 59]),
+    Tuning.baritone('B Standard', 'B E A D G C E A', [23, 28, 33, 38, 43, 48, 52, 57]),
+    Tuning.baritone('Drop B', 'B F# B E A D F# B', [23, 30, 35, 40, 45, 50, 54, 59]),
   ],
   'bass4': [
     Tuning('Standard', 'E A D G', [28, 33, 38, 43]),

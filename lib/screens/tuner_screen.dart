@@ -296,7 +296,7 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
           child: RustPlate(
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Row(children: [
-              Text('$n-STRING ${rig.instrument.label}', style: T.caps(11, color: C.peach, spacing: 2)),
+              Text('$n-STRING ${t.baritone ? 'BARITONE' : rig.instrument.label}', style: T.caps(11, color: C.peach, spacing: 2)),
               const Spacer(),
               Flexible(
                 flex: 3,

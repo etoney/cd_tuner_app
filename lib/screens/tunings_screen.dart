@@ -84,13 +84,18 @@ class _TuningsScreenState extends State<TuningsScreen> {
           padding: const EdgeInsets.only(bottom: 16),
           children: [
             _label('PRESETS'),
-            for (var i = 0; i < rig.presetList.length; i++)
+            for (var i = 0; i < rig.presetList.length; i++) ...[
+              if (rig.presetList[i].baritone && (i == 0 || !rig.presetList[i - 1].baritone)) ...[
+                const SizedBox(height: 8),
+                _label('BARITONE'),
+              ],
               _row(
                 name: rig.presetList[i].name,
                 notes: rig.presetList[i].notes,
                 on: rig.isPresetSelected(i),
                 onTap: () => rig.selectPreset(i),
               ),
+            ],
             const SizedBox(height: 8),
             _label('MY TUNINGS'),
             if (rig.customList.isEmpty)
