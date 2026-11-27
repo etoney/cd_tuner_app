@@ -24,10 +24,6 @@ class Img {
   static const rust = '${_p}rust.jpg';
   static const parchment = '${_p}parchment.jpg';
   static const screen = '${_p}screen.jpg';
-  static const logo = '${_p}logo.png';
-  static const titleMetronome = '${_p}title_metronome.png';
-  static const titleTuner = '${_p}title_tuner.png';
-  static const titleTunings = '${_p}title_tunings.png';
   static const flourish = '${_p}flourish.png';
   static const pyramid = '${_p}pyramid.png';
   static const weight = '${_p}weight.png';
@@ -40,6 +36,7 @@ class Img {
   static const pauseCenter = '${_p}pausecenter.png';
   static const gauge = '${_p}gauge.png';
   static const headBody = '${_p}headbody.png';
+  static const header = '${_p}header.png';
   static const skullGlow = '${_p}skullglow.png';
   static const peg = '${_p}peg.png';
   static const post = '${_p}post.png';
@@ -397,22 +394,23 @@ class PageHeader extends StatelessWidget {
   const PageHeader({super.key, this.semantic = ''});
   final String semantic;
 
+  // Frameless Castle Danger emblem, centred and ending just above the
+  // controls (bottom at 173) so it clears the Dynamic Island.
+  static const _w = 330.0;
+  static const _h = _w * 669 / 1688;
+
   @override
   Widget build(BuildContext context) {
     return Stack(children: [
-      // Castle Danger Music Company crest, centred; the page name is read out
-      // for screen readers only.
-      // Sits below the Dynamic Island. The image carries a dark halo, so it is
-      // a little larger than the crest itself (crest is 104 wide, top at 58).
       Positioned(
-        left: 195 - 57.6,
-        top: 52.4,
-        width: 115.2,
-        height: 119.2,
+        left: 195 - _w / 2,
+        top: 173 - _h,
+        width: _w,
+        height: _h,
         child: Semantics(
           header: true,
           label: semantic,
-          child: Image.asset(Img.logo, semanticLabel: 'Castle Danger Music Company'),
+          child: Image.asset(Img.header, fit: BoxFit.fill, semanticLabel: 'Castle Danger Music Company'),
         ),
       ),
     ]);
