@@ -212,22 +212,18 @@ object AudioEngine {
                 rec.release()
                 rec = AudioRecord(MediaRecorder.AudioSource.MIC, rate, AudioFormat.CHANNEL_IN_MONO, AudioFormat.ENCODING_PCM_16BIT, max(minBuf, chunk * 8))
             }
-            val ring = FloatArray(8192)
+            val tracker = PitchTracker(rate)
             val shorts = ShortArray(chunk)
-            var filled = 0
-            var sinceLast = 0
             rec.startRecording()
             while (inRunning) {
                 val n = rec.read(shorts, 0, chunk)
                 if (n <= 0) continue
-                System.arraycopy(ring, n, ring, 0, ring.size - n)
-                for (i in 0 until n) ring[ring.size - n + i] = shorts[i] / 32768f
-                filled = minOf(ring.size, filled + n)
-                sinceLast += n
-                if (filled == ring.size && sinceLast >= rate / 10) {
-                    sinceLast = 0
-                    val hz = Yin.detect(ring, rate)
-                    main.post { onPitch?.invoke(hz) }
+                for (i in 0 until n) {
+                    tracker.push(shorts[i] / 32768f)
+                    if (tracker.due()) {
+                        val hz = tracker.detect()
+                        main.post { onPitch?.invoke(hz) }
+                    }
                 }
             }
             rec.stop()

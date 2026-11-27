@@ -1,15 +1,100 @@
 package com.castledangermusic.cdmc_audio
 
+import kotlin.math.PI
+import kotlin.math.cos
+import kotlin.math.sin
 import kotlin.math.sqrt
 
 /**
- * YIN pitch detector, tuned for guitar and bass (about 27 Hz to 1400 Hz,
- * which covers a 5-string bass's low B0 at 30.87 Hz).
- * Same algorithm as Yin.swift on iOS.
+ * Pitch tracking for guitar and bass (about 27 Hz to 1400 Hz, so a
+ * 5-string bass's low B0 at 30.87 Hz is covered).
+ *
+ * The microphone signal is first band-passed (25 Hz to 1.5 kHz) and
+ * decimated by 4. That strips out hiss and room noise above the strings'
+ * useful range, so quiet notes from a phone at arm's length still read
+ * accurately. Then YIN finds the period. Same algorithm as Yin.swift on iOS.
  */
+class PitchTracker(inputRate: Int) {
+    private val decim = 4
+    val rate = inputRate / decim
+    private val lp1 = Biquad.lowPass(1500.0, inputRate.toDouble())
+    private val lp2 = Biquad.lowPass(1500.0, inputRate.toDouble())
+    private val hp = Biquad.highPass(25.0, inputRate.toDouble())
+    private var phase = 0
+    private val ring = FloatArray(2048)
+    private val window = FloatArray(2048)
+    private var pos = 0
+    private var filled = 0
+    private var sinceLast = 0
+
+    /** Feeds one raw microphone sample. */
+    fun push(x: Float) {
+        val y = hp.process(lp2.process(lp1.process(x)))
+        if (++phase < decim) return
+        phase = 0
+        ring[pos] = y
+        pos = (pos + 1) % ring.size
+        if (filled < ring.size) filled++
+        sinceLast++
+    }
+
+    /** True about ten times a second once the window is full. */
+    fun due(): Boolean {
+        if (filled < ring.size || sinceLast < rate / 10) return false
+        sinceLast = 0
+        return true
+    }
+
+    fun detect(): Double {
+        // Unroll the circular buffer, oldest sample first.
+        val tail = ring.size - pos
+        System.arraycopy(ring, pos, window, 0, tail)
+        System.arraycopy(ring, 0, window, tail, pos)
+        return Yin.detect(window, rate)
+    }
+}
+
+class Biquad private constructor(
+    private val b0: Double, private val b1: Double, private val b2: Double,
+    private val a1: Double, private val a2: Double,
+) {
+    private var x1 = 0.0
+    private var x2 = 0.0
+    private var y1 = 0.0
+    private var y2 = 0.0
+
+    fun process(x: Float): Float {
+        val y = b0 * x + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
+        x2 = x1; x1 = x.toDouble(); y2 = y1; y1 = y
+        return y.toFloat()
+    }
+
+    companion object {
+        private const val Q = 0.7071
+
+        fun lowPass(f: Double, sr: Double): Biquad {
+            val w = 2 * PI * f / sr
+            val c = cos(w)
+            val a = sin(w) / (2 * Q)
+            val a0 = 1 + a
+            return Biquad((1 - c) / 2 / a0, (1 - c) / a0, (1 - c) / 2 / a0, -2 * c / a0, (1 - a) / a0)
+        }
+
+        fun highPass(f: Double, sr: Double): Biquad {
+            val w = 2 * PI * f / sr
+            val c = cos(w)
+            val a = sin(w) / (2 * Q)
+            val a0 = 1 + a
+            return Biquad((1 + c) / 2 / a0, -(1 + c) / a0, (1 + c) / 2 / a0, -2 * c / a0, (1 - a) / a0)
+        }
+    }
+}
+
 object Yin {
-    private const val THRESHOLD = 0.12f
-    private const val MIN_RMS = 0.003f
+    private const val THRESHOLD = 0.15f
+    private const val RELATIVE = 1.6f
+    private const val REJECT = 0.5f
+    private const val MIN_RMS = 0.0008f
 
     /** Returns the fundamental in Hz, or -1 when the signal is too quiet or unpitched. */
     fun detect(b: FloatArray, sampleRate: Int): Double {
@@ -26,18 +111,22 @@ object Yin {
         var run = 0.0
         for (t in 1..maxLag + 1) {
             var s = 0.0
-            var i = 0
-            while (i < w) {
+            for (i in 0 until w) {
                 val x = b[i] - b[i + t]
                 s += x * x
-                i += 2
             }
             run += s
             d[t] = if (run > 0) (s * t / run).toFloat() else 1f
         }
+        var gmin = Float.MAX_VALUE
+        for (t in minLag until maxLag) if (d[t] < gmin) gmin = d[t]
+        if (gmin > REJECT) return -1.0
+        // Take the first dip that is nearly as good as the best one; this
+        // avoids reading an octave low when the room is noisy.
+        val limit = maxOf(THRESHOLD, gmin * RELATIVE)
         var tau = -1
         for (t in minLag until maxLag) {
-            if (d[t] < THRESHOLD) { tau = t; break }
+            if (d[t] < limit) { tau = t; break }
         }
         if (tau < 0) return -1.0
         while (tau + 1 < maxLag && d[tau + 1] < d[tau]) tau++

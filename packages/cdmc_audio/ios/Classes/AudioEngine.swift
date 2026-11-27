@@ -223,9 +223,7 @@ final class AudioEngine {
 
     private let rec = AVAudioEngine()
     private let detectQueue = DispatchQueue(label: "cdmc.pitch")
-    private var ring = [Float](repeating: 0, count: 8192)
-    private var filled = 0
-    private var sinceLast = 0
+    private var tracker: PitchTracker?
 
     func requestMic(_ done: @escaping (Bool) -> Void) {
         AVAudioSession.sharedInstance().requestRecordPermission { ok in
@@ -242,27 +240,17 @@ final class AudioEngine {
         let input = rec.inputNode
         let fmt = input.outputFormat(forBus: 0)
         guard fmt.sampleRate > 0 else { tunerOn = false; return false }
-        let sr = fmt.sampleRate
-        filled = 0; sinceLast = 0
+        let tracker = PitchTracker(inputRate: fmt.sampleRate)
+        self.tracker = tracker
         input.removeTap(onBus: 0)
         input.installTap(onBus: 0, bufferSize: 2048, format: fmt) { [weak self] buffer, _ in
             guard let self = self, let ch = buffer.floatChannelData?[0] else { return }
-            let n = Int(buffer.frameLength)
-            let samples = Array(UnsafeBufferPointer(start: ch, count: n))
+            let samples = Array(UnsafeBufferPointer(start: ch, count: Int(buffer.frameLength)))
             self.detectQueue.async {
-                let size = self.ring.count
-                if n >= size {
-                    self.ring = Array(samples.suffix(size))
-                } else {
-                    self.ring.removeFirst(n)
-                    self.ring.append(contentsOf: samples)
-                }
-                self.filled = min(size, self.filled + n)
-                self.sinceLast += n
-                if self.filled == size && self.sinceLast >= Int(sr / 10) {
-                    self.sinceLast = 0
-                    let hz = Yin.detect(self.ring, sampleRate: sr)
-                    DispatchQueue.main.async { self.onPitch?(hz) }
+                samples.withUnsafeBufferPointer { p in
+                    tracker.push(p) { hz in
+                        DispatchQueue.main.async { self.onPitch?(hz) }
+                    }
                 }
             }
         }

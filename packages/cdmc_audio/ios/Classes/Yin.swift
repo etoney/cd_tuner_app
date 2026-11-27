@@ -1,10 +1,77 @@
 import Foundation
 
-/// YIN pitch detector, tuned for guitar and bass (about 27 Hz to 1400 Hz).
-/// Same algorithm as Yin.kt on Android.
+/// Pitch tracking for guitar and bass (about 27 Hz to 1400 Hz, so a
+/// 5-string bass's low B0 at 30.87 Hz is covered).
+///
+/// The microphone signal is first band-passed (25 Hz to 1.5 kHz) and
+/// decimated by 4. That strips out hiss and room noise above the strings'
+/// useful range, so quiet notes from a phone at arm's length still read
+/// accurately. Then YIN finds the period. Same algorithm as Yin.kt on Android.
+final class PitchTracker {
+    private let decim = 4
+    let rate: Double
+    private var lp1: Biquad, lp2: Biquad, hp: Biquad
+    private var phase = 0
+    private var ring = [Float](repeating: 0, count: 2048)
+    private var pos = 0
+    private var filled = 0
+    private var sinceLast = 0
+
+    init(inputRate: Double) {
+        rate = inputRate / Double(decim)
+        lp1 = .lowPass(1500, inputRate)
+        lp2 = .lowPass(1500, inputRate)
+        hp = .highPass(25, inputRate)
+    }
+
+    /// Feeds raw microphone samples; calls [onReading] about ten times a second.
+    func push(_ samples: UnsafeBufferPointer<Float>, onReading: (Double) -> Void) {
+        for x in samples {
+            let y = hp.process(lp2.process(lp1.process(x)))
+            phase += 1
+            if phase < decim { continue }
+            phase = 0
+            ring[pos] = y
+            pos = (pos + 1) % ring.count
+            if filled < ring.count { filled += 1 }
+            sinceLast += 1
+            if filled == ring.count && sinceLast >= Int(rate / 10) {
+                sinceLast = 0
+                let window = Array(ring[pos...] + ring[..<pos])
+                onReading(Yin.detect(window, sampleRate: rate))
+            }
+        }
+    }
+}
+
+struct Biquad {
+    let b0, b1, b2, a1, a2: Double
+    var x1 = 0.0, x2 = 0.0, y1 = 0.0, y2 = 0.0
+
+    mutating func process(_ x: Float) -> Float {
+        let y = b0 * Double(x) + b1 * x1 + b2 * x2 - a1 * y1 - a2 * y2
+        x2 = x1; x1 = Double(x); y2 = y1; y1 = y
+        return Float(y)
+    }
+
+    static let q = 0.7071
+
+    static func lowPass(_ f: Double, _ sr: Double) -> Biquad {
+        let w = 2 * Double.pi * f / sr, c = cos(w), a = sin(w) / (2 * q), a0 = 1 + a
+        return Biquad(b0: (1 - c) / 2 / a0, b1: (1 - c) / a0, b2: (1 - c) / 2 / a0, a1: -2 * c / a0, a2: (1 - a) / a0)
+    }
+
+    static func highPass(_ f: Double, _ sr: Double) -> Biquad {
+        let w = 2 * Double.pi * f / sr, c = cos(w), a = sin(w) / (2 * q), a0 = 1 + a
+        return Biquad(b0: (1 + c) / 2 / a0, b1: -(1 + c) / a0, b2: (1 + c) / 2 / a0, a1: -2 * c / a0, a2: (1 - a) / a0)
+    }
+}
+
 enum Yin {
-    static let threshold: Float = 0.12
-    static let minRms: Float = 0.003
+    static let threshold: Float = 0.15
+    static let relative: Float = 1.6
+    static let reject: Float = 0.5
+    static let minRms: Float = 0.0008
 
     /// Returns the fundamental in Hz, or -1 when the signal is too quiet or unpitched.
     static func detect(_ b: [Float], sampleRate: Double) -> Double {
@@ -21,18 +88,22 @@ enum Yin {
         b.withUnsafeBufferPointer { p in
             for t in 1...(maxLag + 1) {
                 var s: Double = 0
-                var i = 0
-                while i < w {
+                for i in 0..<w {
                     let x = p[i] - p[i + t]
                     s += Double(x * x)
-                    i += 2
                 }
                 run += s
                 d[t] = run > 0 ? Float(s * Double(t) / run) : 1
             }
         }
+        var gmin = Float.greatestFiniteMagnitude
+        for t in minLag..<maxLag where d[t] < gmin { gmin = d[t] }
+        if gmin > reject { return -1 }
+        // Take the first dip that is nearly as good as the best one; this
+        // avoids reading an octave low when the room is noisy.
+        let limit = max(threshold, gmin * relative)
         var tau = -1
-        for t in minLag..<maxLag where d[t] < threshold { tau = t; break }
+        for t in minLag..<maxLag where d[t] < limit { tau = t; break }
         if tau < 0 { return -1 }
         while tau + 1 < maxLag && d[tau + 1] < d[tau] { tau += 1 }
         let a = d[tau - 1], c = d[tau + 1]
