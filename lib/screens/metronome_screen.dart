@@ -19,7 +19,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
   int _swingBpm = 0;
   bool _swinging = false;
   double _dragStartBpm = 0;
-  Offset _dragStart = Offset.zero;
+  double _dragDx = 0;
 
   Metronome get m => widget.metronome;
 
@@ -59,7 +59,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
       // BPM readout with − / + buttons.
       Positioned(
         left: 18,
-        top: 148,
+        top: 170,
         width: 354,
         height: 100,
         child: RustPlate(
@@ -81,30 +81,39 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
         ),
       ),
 
-      // Tempo dial.
+      // Tempo wheel: a flat, ridged thumbwheel you roll left (slower) or right (faster).
       Positioned(
-        left: 95,
-        top: 254,
-        width: 200,
-        height: 78,
+        left: 18,
+        top: 278,
+        width: 354,
+        height: 46,
         child: Semantics(
           slider: true,
-          label: 'Tempo dial',
+          label: 'Tempo wheel',
           value: '${m.bpm} BPM',
           increasedValue: '${m.bpm + 1} BPM',
           decreasedValue: '${m.bpm - 1} BPM',
           onIncrease: () => m.setBpm(m.bpm + 1),
           onDecrease: () => m.setBpm(m.bpm - 1),
           child: GestureDetector(
-            onPanStart: (d) {
-              _dragStart = d.localPosition;
+            behavior: HitTestBehavior.opaque,
+            onHorizontalDragStart: (_) {
               _dragStartBpm = m.bpm.toDouble();
+              _dragDx = 0;
             },
-            onPanUpdate: (d) {
-              final delta = (d.localPosition.dx - _dragStart.dx) - (d.localPosition.dy - _dragStart.dy);
-              m.setBpm(_dragStartBpm + delta * 0.5);
+            onHorizontalDragUpdate: (d) {
+              _dragDx += d.delta.dx;
+              m.setBpm(_dragStartBpm + _dragDx / 6);
             },
-            child: CustomPaint(painter: _DialPainter(m.bpm)),
+            child: RustPlate(
+              radius: 10,
+              rivets: false,
+              padding: const EdgeInsets.all(5),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: CustomPaint(painter: _WheelPainter(m.bpm), size: Size.infinite),
+              ),
+            ),
           ),
         ),
       ),
@@ -370,68 +379,63 @@ class _InteriorClipper extends CustomClipper<Path> {
   bool shouldReclip(covariant CustomClipper<Path> oldClipper) => false;
 }
 
-class _DialPainter extends CustomPainter {
-  _DialPainter(this.bpm);
+class _WheelPainter extends CustomPainter {
+  _WheelPainter(this.bpm);
   final int bpm;
+
+  static const _ridges = 36;
 
   @override
   void paint(Canvas canvas, Size size) {
-    const c = Offset(100, 38);
-    double angFor(num b) => -135 + (b - 20) / 280 * 270;
-    final cur = angFor(bpm);
-    for (var i = 0; i <= 28; i++) {
-      final deg = -135 + i * 270 / 28;
-      final a = deg * math.pi / 180;
-      final major = i % 7 == 0;
-      final lit = cur >= deg - 0.01;
-      final r1 = major ? 37.0 : 40.0;
-      const r2 = 45.0;
-      canvas.drawLine(
-        c + Offset(r1 * math.sin(a) * 1.15, -r1 * math.cos(a)),
-        c + Offset(r2 * math.sin(a) * 1.15, -r2 * math.cos(a)),
-        Paint()
-          ..color = lit ? const Color(0xFFFF5A30) : const Color(0xFF6A4E3C)
-          ..strokeWidth = major ? 2.5 : 1.5
-          ..strokeCap = StrokeCap.round,
-      );
-    }
-    final tp = TextPainter(textDirection: TextDirection.ltr);
-    for (final (text, x, alignRight) in [('SLOW', 22.0, false), ('FAST', 178.0, true)]) {
-      tp.text = TextSpan(text: text, style: T.caps(10, color: C.muted));
-      tp.layout();
-      tp.paint(canvas, Offset(alignRight ? x - tp.width : x, 64));
-    }
-    // Knob.
-    final knob = Rect.fromCircle(center: c, radius: 32);
-    canvas.drawCircle(c + const Offset(0, 4), 32, Paint()
-      ..color = Colors.black54
-      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 6));
-    canvas.drawCircle(
-      c,
-      32,
+    final w = size.width, h = size.height, r = w / 2;
+    final rect = Offset.zero & size;
+    // Cylinder body: bright in the middle, falling into shadow at both ends.
+    canvas.drawRect(
+      rect,
       Paint()
-        ..shader = const RadialGradient(
-          center: Alignment(-0.3, -0.4),
-          colors: [Color(0xFFB8805A), Color(0xFF6A4230), Color(0xFF2A1810)],
-        ).createShader(knob),
+        ..shader = const LinearGradient(
+          colors: [Color(0xFF050302), Color(0xFF3A2418), Color(0xFF7A4E34), Color(0xFF3A2418), Color(0xFF050302)],
+          stops: [0, 0.22, 0.5, 0.78, 1],
+        ).createShader(rect),
     );
-    canvas.drawCircle(c, 32, Paint()
-      ..color = const Color(0xFF1E130D)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2);
-    canvas.drawCircle(c, 19, Paint()..color = const Color(0xFF120C0A));
-    canvas.drawCircle(c, 19, Paint()
-      ..color = const Color(0xFF7A5440)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 2);
-    final a = cur * math.pi / 180;
-    final dir = Offset(math.sin(a), -math.cos(a));
-    canvas.drawLine(c + dir * 4, c + dir * 15, Paint()
-      ..color = const Color(0xFFFF4A2A)
-      ..strokeWidth = 4
-      ..strokeCap = StrokeCap.round);
+    // Ridges: evenly spaced round the drum, so they bunch up towards the edges.
+    final step = 2 * math.pi / _ridges;
+    final phase = (bpm * step / 2) % step;
+    for (var t = -math.pi / 2 + phase; t < math.pi / 2; t += step) {
+      final x = r + r * math.sin(t);
+      final light = math.cos(t);
+      final width = 1.0 + 2.2 * light;
+      canvas.drawLine(Offset(x, 0), Offset(x, h), Paint()
+        ..color = Color.lerp(const Color(0xFF0A0604), const Color(0xFF140C08), light)!
+        ..strokeWidth = width);
+      canvas.drawLine(Offset(x + width, 0), Offset(x + width, h), Paint()
+        ..color = const Color(0xFFE0B48A).withOpacity(0.35 * light * light)
+        ..strokeWidth = 1);
+    }
+    // Top and bottom bevels.
+    canvas.drawRect(Rect.fromLTWH(0, 0, w, 5), Paint()..color = const Color(0x66000000));
+    canvas.drawRect(Rect.fromLTWH(0, h - 5, w, 5), Paint()..color = const Color(0x88000000));
+    // Centre index: a glowing red line with notches.
+    final cx = r;
+    canvas.drawLine(Offset(cx, 4), Offset(cx, h - 4), Paint()
+      ..color = const Color(0x99FF3C1E)
+      ..strokeWidth = 7
+      ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+    canvas.drawLine(Offset(cx, 4), Offset(cx, h - 4), Paint()
+      ..color = const Color(0xFFFF5A30)
+      ..strokeWidth = 2.5);
+    final notch = Paint()..color = const Color(0xFFFF5A30);
+    canvas.drawPath(Path()..moveTo(cx - 6, 0)..lineTo(cx + 6, 0)..lineTo(cx, 7)..close(), notch);
+    canvas.drawPath(Path()..moveTo(cx - 6, h)..lineTo(cx + 6, h)..lineTo(cx, h - 7)..close(), notch);
+    // Hints at the ends.
+    final tp = TextPainter(textDirection: TextDirection.ltr);
+    for (final (text, left) in [('◂ SLOWER', true), ('FASTER ▸', false)]) {
+      tp.text = TextSpan(text: text, style: T.caps(10, color: C.muted, spacing: 1.5));
+      tp.layout();
+      tp.paint(canvas, Offset(left ? 10 : w - 10 - tp.width, (h - tp.height) / 2));
+    }
   }
 
   @override
-  bool shouldRepaint(covariant _DialPainter old) => old.bpm != bpm;
+  bool shouldRepaint(covariant _WheelPainter old) => old.bpm != bpm;
 }
