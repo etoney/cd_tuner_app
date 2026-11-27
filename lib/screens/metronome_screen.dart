@@ -79,7 +79,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     final sig = timeSigs[m.sig];
     return Stack(children: [
-      const PageHeader(title: Img.titleMetronome, titleRect: Rect.fromLTWH(172, 52, 206, 84), semantic: 'Metronome'),
+      const PageHeader(semantic: 'Metronome'),
 
       // BPM readout with − / + buttons.
       Positioned(

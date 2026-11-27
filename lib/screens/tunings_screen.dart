@@ -38,7 +38,7 @@ class _TuningsScreenState extends State<TuningsScreen> {
   @override
   Widget build(BuildContext context) {
     return Stack(children: [
-      const PageHeader(title: Img.titleTunings, titleRect: Rect.fromLTWH(146, 66, 236, 79), semantic: 'Tunings'),
+      const PageHeader(semantic: 'Tunings'),
       Positioned(
         left: 18,
         top: 180,

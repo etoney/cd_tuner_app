@@ -394,22 +394,25 @@ class LampButton extends StatelessWidget {
 
 /// Header crest + page title art.
 class PageHeader extends StatelessWidget {
-  const PageHeader({super.key, required this.title, required this.titleRect, this.semantic = ''});
-  final String title;
-  final Rect titleRect;
+  const PageHeader({super.key, this.semantic = ''});
   final String semantic;
 
   @override
   Widget build(BuildContext context) {
     return Stack(children: [
+      // Castle Danger Music Company crest, centred; the page name is read out
+      // for screen readers only.
       Positioned(
-        left: 12,
+        left: (390 - 116) / 2,
         top: 44,
         width: 116,
         height: 121,
-        child: Image.asset(Img.logo, semanticLabel: 'Castle Danger Music Company'),
+        child: Semantics(
+          header: true,
+          label: semantic,
+          child: Image.asset(Img.logo, semanticLabel: 'Castle Danger Music Company'),
+        ),
       ),
-      Positioned.fromRect(rect: titleRect, child: Image.asset(title, semanticLabel: semantic)),
     ]);
   }
 }

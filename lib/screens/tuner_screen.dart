@@ -283,7 +283,7 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
             : (cents < 0 ? 'FLAT · TUNE UP' : 'SHARP · TUNE DOWN');
 
     return Stack(children: [
-      const PageHeader(title: Img.titleTuner, titleRect: Rect.fromLTWH(154, 58, 228, 113), semantic: 'Tuner'),
+      const PageHeader(semantic: 'Tuner'),
 
       // Current setup and tuning; opens the Tunings tab.
       Positioned(
