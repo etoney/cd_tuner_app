@@ -27,7 +27,8 @@ final class AudioEngine {
 
     private var toneHz = 0.0
     private var toneOn = false
-    private var tonePhase = 0.0
+    private var refTone: RefTone?
+    private var refToneRate = 0.0
     private var toneGain = 0.0
 
     private var clock: Int64 = 0
@@ -134,7 +135,7 @@ final class AudioEngine {
         let on = metronomeOn, sub = subdivision, pattern = beats, snd = sound
         let stepLen = sampleRate * 60 / bpm / Double(sub)
         if restart { restart = false; step = 0; nextTick = Double(clock) + sampleRate / 20 }
-        let tHz = toneHz, tTarget = toneOn ? 0.18 : 0.0
+        let tHz = toneHz, tTarget = toneOn ? 0.22 : 0.0
         os_unfair_lock_unlock(&lock)
 
         var beatTimes: [(Int, Int)] = []
@@ -159,9 +160,10 @@ final class AudioEngine {
             }
             toneGain += (tTarget - toneGain) * 0.002
             if toneGain > 0.0005 {
-                tonePhase += tHz / sampleRate
-                if tonePhase >= 1 { tonePhase -= floor(tonePhase) }
-                s += Float(toneGain * (1 - 4 * abs(tonePhase - 0.5)))
+                if refTone == nil || refToneRate != sampleRate {
+                    refTone = RefTone(sampleRate: sampleRate); refToneRate = sampleRate
+                }
+                s += Float(toneGain * refTone!.next(tHz))
             }
             data[i] = max(-1, min(1, s))
         }

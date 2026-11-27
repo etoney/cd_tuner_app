@@ -9,8 +9,6 @@ import android.media.MediaRecorder
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
-import kotlin.math.abs
-import kotlin.math.floor
 import kotlin.math.max
 
 /**
@@ -131,7 +129,7 @@ object AudioEngine {
         var clock = 0L
         var nextTick = 0.0
         var step = 0L
-        var tonePhase = 0.0
+        val refTone = RefTone(SR.toDouble())
         var toneGain = 0.0
         var idle = 0
         val latencyMs = ((track.bufferSizeInFrames + BLOCK) * 1000L / SR)
@@ -148,7 +146,7 @@ object AudioEngine {
             val pattern = beats
             val stepLen = SR * 60.0 / bpm / sub
             val tHz = toneHz
-            val tTarget = if (toneOn) 0.18 else 0.0
+            val tTarget = if (toneOn) 0.22 else 0.0
 
             for (i in 0 until BLOCK) {
                 if (on && clock + i >= nextTick) {
@@ -175,9 +173,7 @@ object AudioEngine {
                 }
                 toneGain += (tTarget - toneGain) * 0.002
                 if (toneGain > 0.0005) {
-                    tonePhase += tHz / SR
-                    if (tonePhase >= 1) tonePhase -= floor(tonePhase)
-                    s += (toneGain * (1 - 4 * abs(tonePhase - 0.5))).toFloat()
+                    s += (toneGain * refTone.next(tHz)).toFloat()
                 }
                 block[i] = s.coerceIn(-1f, 1f)
             }
