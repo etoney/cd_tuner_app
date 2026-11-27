@@ -5,6 +5,7 @@ import android.app.Activity
 import android.content.Context
 import android.content.pm.PackageManager
 import android.os.Build
+import android.view.WindowManager
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import io.flutter.embedding.engine.plugins.FlutterPlugin
@@ -70,6 +71,14 @@ class CdmcAudioPlugin : FlutterPlugin, MethodChannel.MethodCallHandler, Activity
                 }
             }
             "stopTuner" -> { AudioEngine.stopTuner(); result.success(null) }
+            "keepAwake" -> {
+                val on = call.argument<Boolean>("on") ?: false
+                activity?.window?.let { w ->
+                    if (on) w.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                    else w.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+                }
+                result.success(null)
+            }
             "startTone" -> { AudioEngine.startTone(call.argument<Double>("hz") ?: 440.0); result.success(null) }
             "stopTone" -> { AudioEngine.stopTone(); result.success(null) }
             "pluck" -> { AudioEngine.pluck(call.argument<Double>("hz") ?: 440.0); result.success(null) }

@@ -39,6 +39,9 @@ class CdmcAudio {
 
   static Future<void> stopTuner() => _m.invokeMethod('stopTuner');
 
+  /// Stops the screen from dimming and locking (used while the tuner listens).
+  static Future<void> keepAwake(bool on) => _m.invokeMethod('keepAwake', {'on': on});
+
   /// Plays a steady reference tone (triangle wave) until [stopTone].
   static Future<void> startTone(double hz) =>
       _m.invokeMethod('startTone', {'hz': hz});

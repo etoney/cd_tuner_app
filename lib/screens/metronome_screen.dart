@@ -243,6 +243,9 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
         child: Stack(children: [
           Positioned(left: 6, top: 16, width: 108, height: 56, child: _ImageButton(Img.tap, 108, 'Tap tempo', m.tap, height: 45)),
           Positioned(left: 105, top: 0, width: 180, height: 88, child: Image.asset(Img.playCenter, fit: BoxFit.fill)),
+          // While playing, cover the play disc with the same disc showing pause bars.
+          if (m.playing)
+            Positioned(left: 153.7, top: 0, width: 83.7, height: 79.8, child: Image.asset(Img.pauseDisc, fit: BoxFit.fill)),
           Positioned(
             left: 155,
             top: 0,
@@ -254,24 +257,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
               child: GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onTap: m.toggle,
-                child: m.playing
-                    ? Center(
-                        child: Container(
-                          width: 40,
-                          height: 40,
-                          decoration: const BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: RadialGradient(
-                                center: Alignment(-0.2, -0.3), colors: [Color(0xFFC0301E), Color(0xFF6A0D08)]),
-                          ),
-                          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                            Container(width: 6, height: 20, color: C.bone),
-                            const SizedBox(width: 6),
-                            Container(width: 6, height: 20, color: C.bone),
-                          ]),
-                        ),
-                      )
-                    : const SizedBox.expand(),
+                child: const SizedBox.expand(),
               ),
             ),
           ),

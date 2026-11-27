@@ -4,7 +4,7 @@ import Foundation
 /// Same algorithm as Yin.kt on Android.
 enum Yin {
     static let threshold: Float = 0.12
-    static let minRms: Float = 0.008
+    static let minRms: Float = 0.003
 
     /// Returns the fundamental in Hz, or -1 when the signal is too quiet or unpitched.
     static func detect(_ b: [Float], sampleRate: Double) -> Double {

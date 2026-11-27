@@ -30,6 +30,10 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
   double cents = 0;
   final List<double> _hist = [];
   StreamSubscription<double>? _pitchSub;
+  Timer? _holdTimer;
+
+  /// How long the last reading stays on screen after the string fades out.
+  static const _hold = Duration(milliseconds: 1800);
   String _lastKey = '';
 
   Rig get rig => widget.rig;
@@ -72,7 +76,9 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
     WidgetsBinding.instance.removeObserver(this);
     rig.removeListener(_onRig);
     _pitchSub?.cancel();
+    _holdTimer?.cancel();
     CdmcAudio.stopTuner();
+    CdmcAudio.keepAwake(false);
     CdmcAudio.stopTone();
     super.dispose();
   }
@@ -93,6 +99,7 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
   Future<void> _startMic() async {
     if (listening) return;
     final ok = await CdmcAudio.startTuner();
+    if (ok) CdmcAudio.keepAwake(true);
     if (!mounted) return;
     setState(() {
       listening = ok;
@@ -103,6 +110,8 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
 
   void _stopMic({bool keepWanted = false}) {
     CdmcAudio.stopTuner();
+    CdmcAudio.keepAwake(false);
+    _holdTimer?.cancel();
     if (!mounted) return;
     setState(() {
       listening = false;
@@ -125,9 +134,20 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
   void _onPitch(double hz) {
     if (!listening) return;
     if (hz <= 0) {
-      setState(() => heard = null);
+      // Keep the last reading on screen for a moment as the note fades,
+      // then go back to "no signal" (needle parked, never centred).
+      if (heard != null && (_holdTimer == null || !_holdTimer!.isActive)) {
+        _holdTimer = Timer(_hold, () {
+          if (!mounted) return;
+          setState(() {
+            heard = null;
+            _hist.clear();
+          });
+        });
+      }
       return;
     }
+    _holdTimer?.cancel();
     _hist.add(hz);
     if (_hist.length > 5) _hist.removeAt(0);
     final sorted = [..._hist]..sort();
@@ -221,9 +241,12 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
           Positioned.fill(child: Image.asset(Img.gauge, fit: BoxFit.fill)),
           Positioned.fill(
             child: TweenAnimationBuilder<double>(
-              tween: Tween(end: hasPitch ? cents.clamp(-50, 50).toDouble() : 0),
-              duration: const Duration(milliseconds: 120),
-              builder: (_, v, __) => CustomPaint(painter: _NeedlePainter(v, color)),
+              tween: Tween(end: hasPitch ? cents.clamp(-50, 50).toDouble() : -50),
+              duration: Duration(milliseconds: hasPitch ? 120 : 400),
+              builder: (_, v, __) => Opacity(
+                opacity: hasPitch ? 1 : 0.35,
+                child: CustomPaint(painter: _NeedlePainter(v, color)),
+              ),
             ),
           ),
           Positioned(
@@ -243,8 +266,8 @@ class _TunerScreenState extends State<TunerScreen> with WidgetsBindingObserver {
                   child: Text('${noteOctave(midi)}', style: T.caps(15, color: color, spacing: 0)),
                 ),
               ]),
-              Text(hasPitch ? '${heard!.toStringAsFixed(1)} Hz' : '${target.toStringAsFixed(1)} Hz',
-                  style: T.caps(14, color: const Color(0xFFD8CCB4), spacing: 0.5)),
+              Text(hasPitch ? '${heard!.toStringAsFixed(1)} Hz' : (listening ? 'PLAY A STRING' : '— Hz'),
+                  style: T.caps(hasPitch ? 14 : 11, color: const Color(0xFFD8CCB4), spacing: 0.5)),
             ]),
           ),
         ]),

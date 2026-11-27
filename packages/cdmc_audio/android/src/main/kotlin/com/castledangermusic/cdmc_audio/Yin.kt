@@ -9,7 +9,7 @@ import kotlin.math.sqrt
  */
 object Yin {
     private const val THRESHOLD = 0.12f
-    private const val MIN_RMS = 0.008f
+    private const val MIN_RMS = 0.003f
 
     /** Returns the fundamental in Hz, or -1 when the signal is too quiet or unpitched. */
     fun detect(b: FloatArray, sampleRate: Int): Double {
