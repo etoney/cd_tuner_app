@@ -79,14 +79,13 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
   Widget build(BuildContext context) {
     final sig = timeSigs[m.sig];
     return Stack(children: [
-      const PageHeader(semantic: 'Metronome'),
 
       // BPM readout with − / + buttons.
       Positioned(
         left: 18,
-        top: 170,
+        top: 180,
         width: 354,
-        height: 100,
+        height: 96,
         child: RustPlate(
           padding: const EdgeInsets.symmetric(horizontal: 14),
           child: Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
@@ -109,7 +108,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
       // Tempo wheel: a flat, ridged thumbwheel you roll left (slower) or right (faster).
       Positioned(
         left: 18,
-        top: 278,
+        top: 282,
         width: 354,
         height: 46,
         child: Semantics(
@@ -146,7 +145,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
       // Time signatures (scrolls).
       Positioned(
         left: 6,
-        top: 334,
+        top: 336,
         width: 96,
         height: 224,
         child: Parchment(
@@ -182,7 +181,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
       // Metronome with swinging pendulum.
       Positioned(
         left: 108,
-        top: 334,
+        top: 336,
         width: 175,
         height: 250,
         child: Transform.scale(
@@ -221,7 +220,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
       // Sound + subdivision.
       Positioned(
         left: 288,
-        top: 334,
+        top: 336,
         width: 96,
         height: 224,
         child: Parchment(
