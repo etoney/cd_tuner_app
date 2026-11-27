@@ -80,7 +80,7 @@ object AudioEngine {
     }
 
     fun pluck(hz: Double) {
-        pending.add(Sounds.pluck(hz, SR))
+        pending.add(RefTone.pluck(hz, SR))
         ensureOutput()
     }
 

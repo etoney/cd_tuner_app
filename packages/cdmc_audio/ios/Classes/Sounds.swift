@@ -75,15 +75,4 @@ enum Sounds {
         }
         return out
     }
-
-    /// A plucked-string style note for "Hear it".
-    static func pluck(hz: Double, sampleRate sr: Double) -> [Float] {
-        let n = Int(1.9 * sr)
-        let k = log(0.0001) / 1.8
-        return (0..<n).map { i in
-            let t = Double(i) / sr
-            let env = exp(k * t) * min(1, t / 0.01)
-            return Float(0.3 * env * (wave(.triangle, hz * t) + 0.3 * wave(.sine, 2 * hz * t)))
-        }
-    }
 }

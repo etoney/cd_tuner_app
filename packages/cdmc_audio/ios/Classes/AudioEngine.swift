@@ -209,7 +209,7 @@ final class AudioEngine {
 
     func pluck(_ hz: Double) {
         ensureOutput()
-        enqueue(Voice(Sounds.pluck(hz: hz, sampleRate: sampleRate)))
+        enqueue(Voice(RefTone.pluck(hz, sampleRate: sampleRate)))
     }
 
     func startTone(_ hz: Double) {

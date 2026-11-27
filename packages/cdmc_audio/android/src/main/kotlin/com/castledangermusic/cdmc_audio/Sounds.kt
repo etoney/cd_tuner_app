@@ -98,17 +98,4 @@ object Sounds {
         }
         return out
     }
-
-    /** A plucked-string style note for "Hear it". */
-    fun pluck(hz: Double, sr: Int): FloatArray {
-        val n = (1.9 * sr).toInt()
-        val out = FloatArray(n)
-        val k = ln(0.0001) / 1.8
-        for (i in 0 until n) {
-            val t = i.toDouble() / sr
-            val env = exp(k * t) * min(1.0, t / 0.01)
-            out[i] = (0.3 * env * (wave(Wave.TRIANGLE, hz * t) + 0.3 * wave(Wave.SINE, 2 * hz * t))).toFloat()
-        }
-        return out
-    }
 }
