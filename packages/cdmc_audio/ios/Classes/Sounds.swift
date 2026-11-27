@@ -11,11 +11,16 @@ enum Sounds {
         var noise: Double = 0
         var highPass: Double = 1000
         var gain: Double = 1
+        /// Pitch ratio for accented beats (1.5 = a fifth up; 0.75 = a bigger, deeper bell).
+        var accentRatio: Double = 1.5
     }
 
-    static let names = ["Anvil", "Woodblock", "Rimshot", "Iron Bell", "Bone", "Hi-Hat", "Cowbell", "Beep"]
+    static let names = ["Church Bell", "Anvil", "Woodblock", "Rimshot", "Iron Bell", "Bone", "Hi-Hat", "Cowbell", "Beep"]
 
     static let specs: [Spec] = [
+        // Church bell: hum, prime, tierce, quint and nominal partials with a long ring.
+        Spec(tones: [(784, .sine), (392, .sine), (196, .sine), (470, .sine), (588, .sine), (1176, .sine), (1568, .sine)],
+             decay: 1.4, noise: 0.08, highPass: 3000, accentRatio: 0.75),
         Spec(tones: [(1250, .triangle), (1980, .sine), (3100, .sine)], decay: 0.28),
         Spec(tones: [(820, .sine)], decay: 0.07, noise: 0.15, highPass: 1500),
         Spec(tones: [(420, .triangle)], decay: 0.05, noise: 0.6, highPass: 2000),
@@ -52,7 +57,7 @@ enum Sounds {
         let a = rc / (rc + dt)
         var hpY = 0.0, prevX = 0.0
         var rng = SystemRandomNumberGenerator()
-        let pitch = accent ? 1.5 : 1.0
+        let pitch = accent ? spec.accentRatio : 1.0
         for i in 0..<n {
             let t = Double(i) * dt
             let env = exp(k * t) * min(1, t / 0.0015)

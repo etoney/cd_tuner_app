@@ -22,11 +22,19 @@ object Sounds {
         val noise: Double = 0.0,
         val highPass: Double = 1000.0,
         val gain: Double = 1.0,
+        /** Pitch ratio for accented beats (1.5 = a fifth up; 0.75 = a bigger, deeper bell). */
+        val accentRatio: Double = 1.5,
     )
 
-    val names = listOf("Anvil", "Woodblock", "Rimshot", "Iron Bell", "Bone", "Hi-Hat", "Cowbell", "Beep")
+    val names = listOf("Church Bell", "Anvil", "Woodblock", "Rimshot", "Iron Bell", "Bone", "Hi-Hat", "Cowbell", "Beep")
 
     private val specs = listOf(
+        // Church bell: hum, prime, tierce, quint and nominal partials with a long ring.
+        Spec(
+            listOf(784.0 to Wave.SINE, 392.0 to Wave.SINE, 196.0 to Wave.SINE, 470.0 to Wave.SINE,
+                588.0 to Wave.SINE, 1176.0 to Wave.SINE, 1568.0 to Wave.SINE),
+            1.4, noise = 0.08, highPass = 3000.0, accentRatio = 0.75,
+        ),
         Spec(listOf(1250.0 to Wave.TRIANGLE, 1980.0 to Wave.SINE, 3100.0 to Wave.SINE), 0.28),
         Spec(listOf(820.0 to Wave.SINE), 0.07, noise = 0.15, highPass = 1500.0),
         Spec(listOf(420.0 to Wave.TRIANGLE), 0.05, noise = 0.6, highPass = 2000.0),
@@ -74,7 +82,7 @@ object Sounds {
         var hpY = 0.0
         var prevX = 0.0
         val rnd = Random(7)
-        val pitch = if (accent) 1.5 else 1.0
+        val pitch = if (accent) spec.accentRatio else 1.0
         for (i in 0 until n) {
             val t = i * dt
             val env = exp(k * t) * min(1.0, t / 0.0015)

@@ -14,7 +14,7 @@ A free tuner and metronome for guitar and bass by Castle Danger Music Company, f
 - 20–300 BPM with − / + buttons, a drag dial and tap tempo
 - 16 time signatures including 2/2, 5/4, 7/8, 11/8, 13/8 and 15/16, with accents set by grouping (7/8 = 2+2+3)
 - Tap any beat lamp to cycle accent → click → soft → off
-- Subdivisions (eighths, triplets, sixteenths) and 8 click sounds
+- Subdivisions (eighths, triplets, sixteenths) and 9 click sounds, with a church bell as the default
 - **Keeps ticking with the phone locked** (iOS background audio; Android foreground service with a Stop button in the notification)
 
 ## How it's built

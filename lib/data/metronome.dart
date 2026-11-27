@@ -53,7 +53,7 @@ const timeSigs = [
 const fourFour = 3;
 
 const subdivisions = [('1/4', 1), ('1/8', 2), ('Trip', 3), ('1/16', 4)];
-const soundNames = ['Anvil', 'Woodblock', 'Rimshot', 'Iron Bell', 'Bone', 'Hi-Hat', 'Cowbell', 'Beep'];
+const soundNames = ['Church Bell', 'Anvil', 'Woodblock', 'Rimshot', 'Iron Bell', 'Bone', 'Hi-Hat', 'Cowbell', 'Beep'];
 
 String tempoName(int bpm) {
   if (bpm < 60) return 'LARGO';
