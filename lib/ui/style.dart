@@ -37,7 +37,7 @@ class Img {
   static const tap = '${_p}tap.png';
   static const reset = '${_p}reset.png';
   static const playCenter = '${_p}playcenter.png';
-  static const pauseDisc = '${_p}pausedisc.png';
+  static const pauseCenter = '${_p}pausecenter.png';
   static const gauge = '${_p}gauge.png';
   static const headBody = '${_p}headbody.png';
   static const peg = '${_p}peg.png';

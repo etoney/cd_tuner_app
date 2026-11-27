@@ -50,6 +50,31 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
     if (mounted) setState(() {});
   }
 
+  Widget _beatRows(BuildContext context) {
+    final n = m.levels.length;
+    final (perRow, size) = _BeatRowsLayout.of(n);
+    Widget lamp(int i) => Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 3),
+          child: _BeatLamp(
+            level: m.levels[i],
+            now: m.playing && m.beat == i,
+            index: i,
+            size: size,
+            onTap: () => m.cycleBeat(i),
+          ),
+        );
+    final rows = <Widget>[];
+    for (var start = 0; start < n; start += perRow) {
+      rows.add(Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [for (var i = start; i < math.min(n, start + perRow); i++) lamp(i)],
+      ));
+    }
+    return Column(mainAxisSize: MainAxisSize.min, children: [
+      for (var r = 0; r < rows.length; r++) ...[if (r > 0) const SizedBox(height: 5), rows[r]],
+    ]);
+  }
+
   @override
   Widget build(BuildContext context) {
     final sig = timeSigs[m.sig];
@@ -123,7 +148,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
         left: 6,
         top: 334,
         width: 96,
-        height: 248,
+        height: 224,
         child: Parchment(
           padding: const EdgeInsets.fromLTRB(0, 14, 0, 6),
           child: Column(children: [
@@ -160,7 +185,10 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
         top: 334,
         width: 175,
         height: 250,
-        child: Stack(children: [
+        child: Transform.scale(
+          scale: 224 / 250,
+          alignment: Alignment.topCenter,
+          child: Stack(children: [
           Positioned.fill(child: Image.asset(Img.pyramid, fit: BoxFit.fill)),
           Positioned.fill(
             child: ClipPath(
@@ -187,6 +215,7 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
             ),
           ),
         ]),
+        ),
       ),
 
       // Sound + subdivision.
@@ -194,51 +223,38 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
         left: 288,
         top: 334,
         width: 96,
-        height: 248,
+        height: 224,
         child: Parchment(
-          padding: const EdgeInsets.symmetric(vertical: 12),
+          padding: const EdgeInsets.symmetric(vertical: 10),
           child: Column(children: [
             Text('Sound', style: T.ink(22)),
-            const SizedBox(height: 6),
-            _ImageButton(Img.speaker, 64, 'Click sound ${soundNames[m.sound]}. Tap for next sound.', m.nextSound),
+            const SizedBox(height: 4),
+            _ImageButton(Img.speaker, 56, 'Click sound ${soundNames[m.sound]}. Tap for next sound.', m.nextSound),
             const SizedBox(height: 6),
             Text(soundNames[m.sound],
                 textAlign: TextAlign.center, style: T.caps(12, color: C.ink, spacing: 0).copyWith(shadows: [])),
             Text('${m.sound + 1} of ${soundNames.length}',
                 style: T.caps(10, color: const Color(0xFF3A2A1C), spacing: 1).copyWith(shadows: [])),
-            const SizedBox(height: 10),
-            Text('Subdivide', style: T.ink(20)),
             const SizedBox(height: 6),
+            Text('Subdivide', style: T.ink(20)),
+            const SizedBox(height: 4),
             OvalButton.text(subdivisions[m.sub].$1, width: 66, height: 44, onTap: m.nextSub, semanticLabel: 'Subdivision'),
           ]),
         ),
       ),
 
-      // Beat accent lamps.
+      // Beat accent lamps: every beat always visible (one row up to 8, two rows above that).
       Positioned(
         left: 18,
-        top: 590,
+        top: 566,
         width: 354,
-        height: 86,
+        height: 110,
         child: RustPlate(
-          padding: const EdgeInsets.fromLTRB(10, 8, 10, 6),
+          padding: const EdgeInsets.fromLTRB(10, 6, 10, 6),
           child: Column(children: [
-            Text('Beat Accent · ${sig.groupLabel}', style: T.gothic(19)),
-            const SizedBox(height: 4),
-            Expanded(
-              child: Center(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(children: [
-                    for (var i = 0; i < m.levels.length; i++)
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 4),
-                        child: _BeatLamp(level: m.levels[i], now: m.playing && m.beat == i, index: i, onTap: () => m.cycleBeat(i)),
-                      ),
-                  ]),
-                ),
-              ),
-            ),
+            Text('Beat Accent · ${sig.groupLabel}', style: T.gothic(18)),
+            const SizedBox(height: 3),
+            Expanded(child: Center(child: _beatRows(context))),
           ]),
         ),
       ),
@@ -251,13 +267,16 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
         height: 88,
         child: Stack(children: [
           Positioned(left: 6, top: 16, width: 108, height: 56, child: _ImageButton(Img.tap, 108, 'Tap tempo', m.tap, height: 45)),
-          Positioned(left: 105, top: 0, width: 180, height: 88, child: Image.asset(Img.playCenter, fit: BoxFit.fill)),
-          // While playing, cover the play disc with the same disc showing pause bars.
-          if (m.playing)
-            Positioned(left: 153.7, top: 0, width: 83.7, height: 79.8, child: Image.asset(Img.pauseDisc, fit: BoxFit.fill)),
+          Positioned(
+            left: 105,
+            top: -6.7,
+            width: 180,
+            height: 94.5,
+            child: Image.asset(m.playing ? Img.pauseCenter : Img.playCenter, fit: BoxFit.fill, gaplessPlayback: true),
+          ),
           Positioned(
             left: 155,
-            top: 0,
+            top: -5,
             width: 80,
             height: 80,
             child: Semantics(
@@ -274,6 +293,18 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
         ]),
       ),
     ]);
+  }
+}
+
+class _BeatRowsLayout {
+  static (int perRow, double size) of(int n) {
+    // 330 px of room inside the plate; each lamp has 3 px of padding either side.
+    const width = 330.0, pad = 6.0;
+    final perRow = n <= 8 ? n : (n + 1) ~/ 2;
+    final rows = n <= 8 ? 1 : 2;
+    final fit = width / perRow - pad;
+    final size = math.min(rows == 1 ? 46.0 : 34.0, fit);
+    return (perRow, size);
   }
 }
 
@@ -300,7 +331,8 @@ class _ImageButton extends StatelessWidget {
 }
 
 class _BeatLamp extends StatelessWidget {
-  const _BeatLamp({required this.level, required this.now, required this.index, required this.onTap});
+  const _BeatLamp({required this.level, required this.now, required this.index, required this.onTap, this.size = 46});
+  final double size;
   final BeatLevel level;
   final bool now;
   final int index;
@@ -320,19 +352,19 @@ class _BeatLamp extends StatelessWidget {
       child: GestureDetector(
         onTap: onTap,
         child: Container(
-          width: 46,
-          height: 46,
+          width: size,
+          height: size,
           alignment: Alignment.center,
           decoration: BoxDecoration(
             shape: BoxShape.circle,
             color: const Color(0xFF0C0908),
-            border: Border.all(color: now ? C.gold : const Color(0xFF4A3426), width: 3),
+            border: Border.all(color: now ? C.gold : const Color(0xFF4A3426), width: size > 40 ? 3 : 2),
             boxShadow: [
               const BoxShadow(color: Color(0xCC000000), blurRadius: 4, offset: Offset(0, 2)),
               if (now) BoxShadow(color: C.gold.withOpacity(0.8), blurRadius: 12),
             ],
           ),
-          child: Lamp(color: color, size: 28, glow: glow),
+          child: Lamp(color: color, size: size * 0.6, glow: glow),
         ),
       ),
     );
