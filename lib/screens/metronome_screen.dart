@@ -265,7 +265,6 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
         width: 390,
         height: 88,
         child: Stack(children: [
-          Positioned(left: 6, top: 16, width: 108, height: 56, child: _ImageButton(Img.tap, 108, 'Tap tempo', m.tap, height: 45)),
           Positioned(
             left: 105,
             top: -6.7,
@@ -288,6 +287,8 @@ class _MetronomeScreenState extends State<MetronomeScreen> with SingleTickerProv
               ),
             ),
           ),
+          // Drawn after the play art so both side buttons sit in front of it.
+          Positioned(left: 6, top: 16, width: 108, height: 56, child: _ImageButton(Img.tap, 108, 'Tap tempo', m.tap, height: 45)),
           Positioned(left: 282, top: 16, width: 100, height: 56, child: _ImageButton(Img.reset, 100, 'Reset', m.reset, height: 45)),
         ]),
       ),

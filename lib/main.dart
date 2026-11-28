@@ -60,7 +60,7 @@ class _ShellState extends State<Shell> {
             child: FadeFlicker(index: tab, children: [
               TunerScreen(rig: widget.rig, active: tab == 0, openTunings: () => setState(() => tab = 2)),
               MetronomeScreen(metronome: widget.metronome),
-              TuningsScreen(rig: widget.rig),
+              TuningsScreen(rig: widget.rig, onPicked: () => setState(() => tab = 0)),
             ]),
           ),
           Positioned(

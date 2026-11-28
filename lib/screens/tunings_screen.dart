@@ -5,8 +5,10 @@ import '../ui/style.dart';
 import 'custom_tuning_screen.dart';
 
 class TuningsScreen extends StatefulWidget {
-  const TuningsScreen({super.key, required this.rig});
+  const TuningsScreen({super.key, required this.rig, this.onPicked});
   final Rig rig;
+  /// Called after a tuning is picked from the list (the app goes to the tuner).
+  final VoidCallback? onPicked;
 
   @override
   State<TuningsScreen> createState() => _TuningsScreenState();
@@ -92,7 +94,10 @@ class _TuningsScreenState extends State<TuningsScreen> {
                 name: rig.presetList[i].name,
                 notes: rig.presetList[i].notes,
                 on: rig.isPresetSelected(i),
-                onTap: () => rig.selectPreset(i),
+                onTap: () {
+                  rig.selectPreset(i);
+                  widget.onPicked?.call();
+                },
               ),
             ],
             const SizedBox(height: 8),
@@ -110,6 +115,7 @@ class _TuningsScreenState extends State<TuningsScreen> {
                 onTap: () => setState(() {
                   confirmDelete = null;
                   rig.selectCustom(c);
+                  widget.onPicked?.call();
                 }),
                 trailing: Row(mainAxisSize: MainAxisSize.min, children: [
                   _iconButton(Icons.edit_outlined, 'Edit ${c.name}', () => _openEditor(c)),
