@@ -1,0 +1,95 @@
+name: TestFlight
+
+# Builds the iPhone app, signs it with your Apple Developer account and
+# uploads it to TestFlight. Runs on every push to main or app-scaffold, or
+# by hand from the Actions tab. Needs these repository secrets:
+#   APPLE_TEAM_ID         10-character Team ID (developer.apple.com > Membership)
+#   ASC_KEY_ID            App Store Connect API key ID
+#   ASC_ISSUER_ID         App Store Connect issuer ID
+#   ASC_KEY_P8            Contents of the AuthKey_XXXX.p8 file
+on:
+  workflow_dispatch:
+  push:
+    branches: [main, app-scaffold]
+
+concurrency:
+  group: testflight
+  cancel-in-progress: false
+
+jobs:
+  testflight:
+    runs-on: macos-latest
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+      ASC_KEY_P8: ${{ secrets.ASC_KEY_P8 }}
+    steps:
+      - name: Check secrets
+        id: ready
+        run: |
+          if [ -z "$APPLE_TEAM_ID" ] || [ -z "$ASC_KEY_ID" ] || [ -z "$ASC_ISSUER_ID" ] || [ -z "$ASC_KEY_P8" ]; then
+            echo "::notice::TestFlight secrets aren't set yet, so this upload was skipped. See README > TestFlight."
+            echo "ok=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.ready.outputs.ok == 'true'
+
+      - uses: subosito/flutter-action@v2
+        if: steps.ready.outputs.ok == 'true'
+        with:
+          channel: stable
+          cache: true
+
+      - name: Generate the iOS project
+        if: steps.ready.outputs.ok == 'true'
+        run: bash tool/setup_platforms.sh
+
+      - name: Install the App Store Connect key
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          mkdir -p "$RUNNER_TEMP/keys"
+          printf '%s' "$ASC_KEY_P8" > "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8"
+
+      - name: Build Flutter (build number = run number)
+        if: steps.ready.outputs.ok == 'true'
+        run: flutter build ios --release --no-codesign --build-number=${{ github.run_number }}
+
+      # Archive unsigned. Signing a development build here made a brand-new
+      # Apple Development certificate on every run (each runner is a fresh
+      # Mac) until Apple's certificate limit was hit. The export step below
+      # signs for the App Store with Apple's cloud-managed certificate instead.
+      - name: Archive (unsigned)
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          xcodebuild archive \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            DEVELOPMENT_TEAM="$APPLE_TEAM_ID" \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY=""
+
+      - name: Sign and upload to TestFlight
+        if: steps.ready.outputs.ok == 'true'
+        run: |
+          sed "s/TEAM_ID/$APPLE_TEAM_ID/" tool/ios/ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/Runner.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/keys/AuthKey_$ASC_KEY_ID.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" \
+            -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "::notice::Uploaded build ${{ github.run_number }}. It shows up in TestFlight after Apple finishes processing (usually 5-30 minutes)."
+
+      - name: Remove the key
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/keys"
