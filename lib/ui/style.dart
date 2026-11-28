@@ -83,14 +83,20 @@ class DesignCanvas extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        color: Color(0xFF0B0807),
-        image: DecorationImage(image: AssetImage(Img.bg), fit: BoxFit.cover),
-      ),
-      child: FittedBox(
-        fit: BoxFit.contain,
-        child: SizedBox(width: size.width, height: size.height, child: child),
+    // Fill the whole screen with the rust background, then scale the
+    // 390 x 844 layout up (or down) to fit and centre it. Without the
+    // SizedBox.expand the layout stayed at 390 x 844 in the top-left corner,
+    // leaving a dark strip on larger iPhones.
+    return SizedBox.expand(
+      child: DecoratedBox(
+        decoration: const BoxDecoration(
+          color: Color(0xFF0B0807),
+          image: DecorationImage(image: AssetImage(Img.bg), fit: BoxFit.cover),
+        ),
+        child: FittedBox(
+          fit: BoxFit.contain,
+          child: SizedBox(width: size.width, height: size.height, child: child),
+        ),
       ),
     );
   }
