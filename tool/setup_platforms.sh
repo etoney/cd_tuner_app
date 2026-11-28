@@ -49,6 +49,12 @@ $PB -c "Delete :UISupportedInterfaceOrientations" "$PLIST" 2>/dev/null || true
 $PB -c "Add :UISupportedInterfaceOrientations array" "$PLIST"
 $PB -c "Add :UISupportedInterfaceOrientations:0 string UIInterfaceOrientationPortrait" "$PLIST"
 
+# iPhone only: the screens are laid out for a phone (no iPad screenshots needed).
+perl -pi -e 's/TARGETED_DEVICE_FAMILY = "1,2";/TARGETED_DEVICE_FAMILY = 1;/g' ios/Runner.xcodeproj/project.pbxproj
+
+# Bundle the fonts (no download needed on first launch).
+bash tool/fetch_fonts.sh
+
 # Android app icons (adaptive foreground/background + legacy sizes).
 cp -R tool/android/res/. android/app/src/main/res/
 
